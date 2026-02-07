@@ -11,14 +11,27 @@ from retail_insights.models.responses import (
     QueryResult,
     SummaryResult,
 )
+from retail_insights.models.schema import (
+    ColumnSchema,
+    DataSource,
+    SchemaRegistryState,
+    TableSchema,
+)
 
 __all__ = [
+    # Request/Response models
     "QueryRequest",
     "SummarizeRequest",
     "QueryResult",
     "SummaryResult",
     "ErrorResponse",
+    # Agent models
     "RouterDecision",
     "SQLGenerationResult",
     "ValidationResult",
+    # Schema models
+    "ColumnSchema",
+    "TableSchema",
+    "DataSource",
+    "SchemaRegistryState",
 ]

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     API_WORKERS: int = 1
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
     API_KEY: SecretStr | None = None
+    ADMIN_API_KEY: str = Field(
+        default="dev-admin-key",
+        description="API key for admin endpoints",
+    )
 
     # OpenAI Configuration
     OPENAI_API_KEY: SecretStr = Field(..., description="OpenAI API key")
