@@ -10,11 +10,13 @@ from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
 
+from retail_insights.agents.nodes.router import route_query
 from retail_insights.agents.state import RetailInsightsState
 
 if TYPE_CHECKING:
     from langgraph.checkpoint.base import BaseCheckpointSaver
     from langgraph.graph.state import CompiledStateGraph
+
 
 
 # Constants
@@ -74,10 +76,11 @@ def check_validation(state: RetailInsightsState) -> str:
 
 
 # Placeholder node functions (will be replaced by actual agent implementations)
-async def router_node(state: RetailInsightsState) -> dict:
+async def placeholder_router_node(state: RetailInsightsState) -> dict:
     """Placeholder for Router agent - classifies user intent.
 
-    TODO: Implement in TICKET-009 with LLM-based classification.
+    Used for testing when LLM is not available.
+    Real implementation: route_query from retail_insights.agents.nodes.router
     """
     return {
         "intent": "query",
@@ -153,6 +156,8 @@ async def summarizer_node(state: RetailInsightsState) -> dict:
 
 def build_graph(
     checkpointer: BaseCheckpointSaver | None = None,
+    *,
+    use_placeholder_router: bool = False,
 ) -> CompiledStateGraph:
     """Build the multi-agent workflow graph.
 
@@ -167,6 +172,8 @@ def build_graph(
 
     Args:
         checkpointer: Optional checkpoint saver for persistence (PostgresSaver/MemorySaver).
+        use_placeholder_router: If True, use placeholder router for testing (no LLM calls).
+            Defaults to False (uses real LLM-based router).
 
     Returns:
         Compiled StateGraph ready for invocation.
@@ -180,6 +187,9 @@ def build_graph(
         ... )
     """
     workflow = StateGraph(RetailInsightsState)
+
+    # Select router node (real or placeholder)
+    router_node = placeholder_router_node if use_placeholder_router else route_query
 
     # Add nodes
     workflow.add_node("router", router_node)
