@@ -187,7 +187,7 @@ endif
 # =============================================================================
 
 run-api:  ## Start FastAPI development server
-	$(UV) run uvicorn retail_insights.api.app:app --reload --host 0.0.0.0 --port 8000
+	$(UV) run uvicorn retail_insights.api.app:create_app --factory --reload --host 0.0.0.0 --port 8000
 
 run-ui:  ## Start Streamlit UI
 	$(UV) run streamlit run src/retail_insights/ui/app.py

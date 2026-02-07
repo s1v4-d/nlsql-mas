@@ -1,0 +1,72 @@
+# =============================================================================
+# Docker Build Context Exclusions
+# =============================================================================
+# Reduces build context size and prevents sensitive/unnecessary files
+# from being included in Docker images.
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+
+# Development tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation and notebooks
+docs/
+notebooks/
+*.ipynb
+*.md
+!README.md
+
+# Local development
+guidance/
+instructions/
+*.env
+.env.*
+!.env.example
+
+# Test fixtures and data (large files)
+tests/fixtures/
+data/*.parquet
+data/*.csv
+*.tar.gz
+*.zip
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
