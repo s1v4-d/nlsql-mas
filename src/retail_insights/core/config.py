@@ -106,6 +106,16 @@ class Settings(BaseSettings):
     OTEL_EXPORTER_TYPE: Literal["otlp", "xray", "console", "none"] = "none"
     OTEL_EXPORTER_ENDPOINT: str = Field(default="http://localhost:4317")
 
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = Field(default=True, description="Enable rate limiting")
+    RATE_LIMIT_DEFAULT: str = Field(default="60/minute", description="Default rate limit")
+    RATE_LIMIT_QUERY: str = Field(default="30/minute", description="Rate limit for query endpoints")
+    RATE_LIMIT_ADMIN: str = Field(default="10/minute", description="Rate limit for admin endpoints")
+
+    # Security
+    AUTH_ENABLED: bool = Field(default=False, description="Enable API key authentication")
+    SECURITY_HEADERS_ENABLED: bool = Field(default=True, description="Enable security headers")
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:

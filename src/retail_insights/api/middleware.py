@@ -12,6 +12,8 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from retail_insights.core.config import get_settings
+
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 
@@ -69,6 +71,51 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         if forwarded:
             return forwarded.split(",")[0].strip()
         return request.client.host if request.client else "unknown"
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add security headers to all responses."""
+
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "X-XSS-Protection": "1; mode=block",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+    }
+
+    def __init__(self, app: ASGIApp, include_csp: bool = False) -> None:
+        super().__init__(app)
+        self.include_csp = include_csp
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+
+        settings = get_settings()
+        if not settings.SECURITY_HEADERS_ENABLED:
+            return response
+
+        for header, value in self.SECURITY_HEADERS.items():
+            response.headers[header] = value
+
+        if self.include_csp:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "font-src 'self'; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none';"
+            )
+
+        if settings.is_production:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
+
+        return response
 
 
 def get_request_id() -> str:

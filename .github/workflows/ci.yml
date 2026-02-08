@@ -65,3 +65,35 @@ jobs:
           fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - run: uv sync --frozen --extra dev
+
+      - name: Install security tools
+        run: uv pip install bandit pip-audit
+
+      - name: Run Bandit security scan
+        run: |
+          uv run bandit -r src/ -c pyproject.toml -f json -o bandit-report.json || true
+          uv run bandit -r src/ -c pyproject.toml
+
+      - name: Check dependencies for vulnerabilities
+        run: uv run pip-audit --strict --progress-spinner off || true
+
+      - name: Upload security report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+          retention-days: 7
