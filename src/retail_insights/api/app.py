@@ -1,12 +1,9 @@
 """FastAPI application entry point."""
 
-import logging
-import time
-import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request, Response, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -22,8 +19,10 @@ from retail_insights.core.exceptions import (
     SQLGenerationError,
     ValidationError,
 )
+from retail_insights.core.logging import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -34,31 +33,33 @@ async def lifespan(app: FastAPI):
     - Settings configuration
     - Schema registry for database metadata
     - LangGraph workflow with checkpointer
+    - OpenTelemetry instrumentation
     """
-    # Startup
     settings = get_settings()
     app.state.settings = settings
+    logger.info("app_starting", environment=settings.ENVIRONMENT)
 
-    # Initialize schema registry on startup
+    from retail_insights.core.telemetry import configure_telemetry
+
+    configure_telemetry(app, settings)
+
     from retail_insights.engine.schema_registry import get_schema_registry
 
     schema_registry = get_schema_registry(settings=settings)
     app.state.schema_registry = schema_registry
-    logger.info("Schema registry initialized with %d tables", len(schema_registry.get_table_info()))
+    logger.info("schema_registry_initialized", table_count=len(schema_registry.get_table_info()))
 
-    # Initialize LangGraph workflow
     from retail_insights.agents.graph import build_graph, get_memory_checkpointer
 
     checkpointer = get_memory_checkpointer()
     graph = build_graph(checkpointer=checkpointer)
     app.state.graph = graph
     app.state.checkpointer = checkpointer
-    logger.info("LangGraph workflow initialized with memory checkpointer")
+    logger.info("langgraph_initialized", checkpointer_type="memory")
 
     yield
 
-    # Shutdown
-    logger.info("Application shutdown complete")
+    logger.info("app_shutdown")
 
 
 def register_exception_handlers(app: FastAPI) -> None:
@@ -164,33 +165,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Request ID middleware
-    @app.middleware("http")
-    async def request_id_middleware(request: Request, call_next) -> Response:
-        """Add request ID to each request for tracing."""
-        req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        request_id_ctx.set(req_id)
-        start_time = time.perf_counter()
+    from retail_insights.api.middleware import RequestContextMiddleware
 
-        response = await call_next(request)
+    app.add_middleware(RequestContextMiddleware)
 
-        duration_ms = (time.perf_counter() - start_time) * 1000
-        response.headers["X-Request-ID"] = req_id
-        response.headers["X-Response-Time-MS"] = f"{duration_ms:.2f}"
-
-        logger.info(
-            "Request completed",
-            extra={
-                "request_id": req_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-            },
-        )
-        return response
-
-    # CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
@@ -199,14 +177,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Register exception handlers
     register_exception_handlers(app)
 
-    # Include routers
     app.include_router(admin_router)
     app.include_router(query_router)
 
-    # Health endpoints
     @app.get("/health", tags=["health"])
     async def health_check() -> dict[str, Any]:
         """Basic health check endpoint."""

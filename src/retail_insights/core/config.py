@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     MAX_RETRY_ATTEMPTS: int = Field(default=3, ge=1, le=10)
     QUERY_RESULT_LIMIT: int = Field(default=100, ge=1, le=10000)
 
+    # Observability
+    OTEL_ENABLED: bool = Field(default=False, description="Enable OpenTelemetry")
+    OTEL_SERVICE_NAME: str = Field(default="retail-insights")
+    OTEL_EXPORTER_TYPE: Literal["otlp", "xray", "console", "none"] = "none"
+    OTEL_EXPORTER_ENDPOINT: str = Field(default="http://localhost:4317")
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
