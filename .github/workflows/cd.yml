@@ -1,11 +1,6 @@
 name: CD
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "**.md"
   workflow_dispatch:
     inputs:
       deploy_infra:
@@ -31,7 +26,7 @@ env:
 jobs:
   terraform:
     name: Terraform Apply
-    if: inputs.deploy_infra || github.event_name == 'push'
+    if: inputs.deploy_infra
     runs-on: ubuntu-latest
     concurrency:
       group: terraform-dev
@@ -67,7 +62,7 @@ jobs:
     needs: terraform
     if: |
       always() &&
-      (inputs.deploy_app || github.event_name == 'push') &&
+      inputs.deploy_app &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
