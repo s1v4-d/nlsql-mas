@@ -105,3 +105,26 @@ def record_llm_usage(agent: str, tokens: int) -> None:
     """
     histogram = get_llm_token_histogram()
     histogram.record(tokens, {"agent": agent})
+
+
+def get_cache_counter() -> Counter:
+    """Get counter for tracking cache hits/misses."""
+    if "cache_counter" not in _metrics:
+        meter = get_meter()
+        _metrics["cache_counter"] = meter.create_counter(
+            "retail_insights.cache.total",
+            description="Cache hit/miss counts",
+            unit="1",
+        )
+    return _metrics["cache_counter"]
+
+
+def record_cache_access(layer: str, hit: bool) -> None:
+    """Record a cache access.
+
+    Args:
+        layer: Cache layer (l1 or l2).
+        hit: Whether it was a cache hit.
+    """
+    counter = get_cache_counter()
+    counter.add(1, {"layer": layer, "hit": str(hit)})
