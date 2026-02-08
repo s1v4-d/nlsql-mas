@@ -56,13 +56,13 @@ jobs:
         with:
           script: |
             const output = `### Terraform Plan
-            
+
             \`\`\`
             ${process.env.PLAN}
             \`\`\`
-            
+
             *Plan generated for commit: ${{ github.sha }}*`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,

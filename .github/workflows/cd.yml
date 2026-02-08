@@ -3,14 +3,6 @@ name: CD
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        type: choice
-        default: "dev"
-        options:
-          - dev
-          - prod
       deploy_infra:
         description: "Deploy infrastructure changes"
         type: boolean
@@ -23,11 +15,10 @@ on:
 permissions:
   id-token: write
   contents: read
-  pull-requests: write
 
 env:
   AWS_REGION: us-east-1
-  TF_VERSION: "1.5.7"
+  TF_VERSION: "1.9.0"
   ECR_REPO_API: retail-insights-api
   ECR_REPO_UI: retail-insights-streamlit
 
@@ -35,13 +26,14 @@ jobs:
   terraform:
     if: inputs.deploy_infra
     runs-on: ubuntu-latest
+    environment: dev
     concurrency:
-      group: terraform-${{ inputs.environment }}
+      group: terraform-dev
       cancel-in-progress: false
 
     defaults:
       run:
-        working-directory: infrastructure/environments/${{ inputs.environment }}
+        working-directory: infrastructure/environments/dev
 
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +51,6 @@ jobs:
         run: terraform init -input=false
 
       - name: Terraform Plan
-        id: plan
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Terraform Apply
@@ -68,7 +59,7 @@ jobs:
   build:
     needs: terraform
     if: |
-      always() && 
+      always() &&
       inputs.deploy_app &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
     runs-on: ubuntu-latest
@@ -88,30 +79,29 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Build API
+      - name: Build API Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile
+          file: ./env-files/docker/Dockerfile.api
           target: production
           push: true
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_API }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build UI
+      - name: Build UI Image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./Dockerfile.streamlit
+          file: ./env-files/docker/Dockerfile.ui
           push: true
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_UI }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy-dev:
+  deploy:
     needs: build
-    if: inputs.environment == 'dev'
     runs-on: ubuntu-latest
     environment: dev
 
@@ -131,14 +121,16 @@ jobs:
           aws ecs describe-task-definition --task-definition retail-insights-dev-api \
             --query taskDefinition > task-def-api.json
 
-      - uses: aws-actions/amazon-ecs-render-task-definition@v1
+      - name: Render API task definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         id: api-task
         with:
           task-definition: task-def-api.json
           container-name: api
           image: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_API }}:${{ github.sha }}
 
-      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      - name: Deploy API service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.api-task.outputs.task-definition }}
           service: api
@@ -150,71 +142,18 @@ jobs:
           aws ecs describe-task-definition --task-definition retail-insights-dev-streamlit \
             --query taskDefinition > task-def-ui.json
 
-      - uses: aws-actions/amazon-ecs-render-task-definition@v1
+      - name: Render UI task definition
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         id: ui-task
         with:
           task-definition: task-def-ui.json
           container-name: streamlit
           image: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_UI }}:${{ github.sha }}
 
-      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+      - name: Deploy UI service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.ui-task.outputs.task-definition }}
           service: streamlit
           cluster: retail-insights-dev
-          wait-for-service-stability: true
-
-  deploy-prod:
-    needs: build
-    if: inputs.environment == 'prod'
-    runs-on: ubuntu-latest
-    environment: prod
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-prod-role
-          aws-region: ${{ env.AWS_REGION }}
-
-      - uses: aws-actions/amazon-ecr-login@v2
-        id: ecr
-
-      - name: Get API task definition
-        run: |
-          aws ecs describe-task-definition --task-definition retail-insights-prod-api \
-            --query taskDefinition > task-def-api.json
-
-      - uses: aws-actions/amazon-ecs-render-task-definition@v1
-        id: api-task
-        with:
-          task-definition: task-def-api.json
-          container-name: api
-          image: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_API }}:${{ github.sha }}
-
-      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.api-task.outputs.task-definition }}
-          service: api
-          cluster: retail-insights-prod
-          wait-for-service-stability: true
-
-      - name: Get UI task definition
-        run: |
-          aws ecs describe-task-definition --task-definition retail-insights-prod-streamlit \
-            --query taskDefinition > task-def-ui.json
-
-      - uses: aws-actions/amazon-ecs-render-task-definition@v1
-        id: ui-task
-        with:
-          task-definition: task-def-ui.json
-          container-name: streamlit
-          image: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPO_UI }}:${{ github.sha }}
-
-      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.ui-task.outputs.task-definition }}
-          service: streamlit
-          cluster: retail-insights-prod
           wait-for-service-stability: true
