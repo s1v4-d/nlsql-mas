@@ -5,7 +5,7 @@
 terraform {
   backend "s3" {
     bucket       = "nlsql-terraform-state"
-    key          = "terraform.tfstate"
+    key          = "dev/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
     use_lockfile = true

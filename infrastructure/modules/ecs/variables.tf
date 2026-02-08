@@ -9,12 +9,12 @@ variable "project_name" {
 }
 
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Environment name"
   type        = string
 
   validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod."
+    condition     = can(regex("^[a-z][a-z0-9-]{0,9}$", var.environment))
+    error_message = "Environment must be 1-10 lowercase alphanumeric characters or hyphens."
   }
 }
 
