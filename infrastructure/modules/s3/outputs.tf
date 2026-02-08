@@ -1,5 +1,5 @@
 # S3 Data Lake Module Outputs
-# ----------------------------
+
 # Exported values for consumption by other modules
 
 # Data Lake Bucket

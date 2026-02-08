@@ -62,10 +62,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fmtStatus = '${{ steps.fmt.outcome }}' === 'success' ? '✅' : '❌';
-            const initStatus = '${{ steps.init.outcome }}' === 'success' ? '✅' : '❌';
-            const validateStatus = '${{ steps.validate.outcome }}' === 'success' ? '✅' : '❌';
-            const planStatus = '${{ steps.plan.outcome }}' === 'success' ? '✅' : '❌';
+            const fmtStatus = '${{ steps.fmt.outcome }}' === 'success' ? 'Pass' : 'Fail';
+            const initStatus = '${{ steps.init.outcome }}' === 'success' ? 'Pass' : 'Fail';
+            const validateStatus = '${{ steps.validate.outcome }}' === 'success' ? 'Pass' : 'Fail';
+            const planStatus = '${{ steps.plan.outcome }}' === 'success' ? 'Pass' : 'Fail';
 
             const plan = `${{ steps.plan.outputs.stdout }}`.substring(0, 60000);
 

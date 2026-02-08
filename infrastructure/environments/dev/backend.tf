@@ -1,5 +1,5 @@
 # Backend Configuration
-# ---------------------
+
 # S3 backend with native state locking (Terraform 1.10+)
 
 terraform {

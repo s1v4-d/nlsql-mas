@@ -1,5 +1,5 @@
 # Networking Module Outputs
-# -------------------------
+
 # Exported values for consumption by other modules
 
 # VPC Outputs

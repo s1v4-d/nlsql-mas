@@ -1,5 +1,5 @@
 # S3 Data Lake Module Variables
-# ------------------------------
+
 # Input variables for S3 bucket configuration
 
 variable "project_name" {

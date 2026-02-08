@@ -1,5 +1,5 @@
 # S3 Data Lake Module - Main Configuration
-# -----------------------------------------
+
 # S3 buckets for Parquet data, exports, and access logging
 
 data "aws_caller_identity" "current" {}
@@ -19,9 +19,9 @@ locals {
   )
 }
 
-# =============================================================================
+
 # KMS Key for S3 Encryption
-# =============================================================================
+
 
 resource "aws_kms_key" "s3" {
   count = var.use_customer_managed_key ? 1 : 0
@@ -70,9 +70,9 @@ resource "aws_kms_alias" "s3" {
   target_key_id = aws_kms_key.s3[0].key_id
 }
 
-# =============================================================================
+
 # Access Logs Bucket
-# =============================================================================
+
 
 resource "aws_s3_bucket" "logs" {
   count = var.enable_access_logging ? 1 : 0
@@ -142,9 +142,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
   }
 }
 
-# =============================================================================
+
 # Data Lake Bucket
-# =============================================================================
+
 
 resource "aws_s3_bucket" "data_lake" {
   bucket        = "${local.name_prefix}-data-lake-${var.aws_account_id}"
@@ -281,9 +281,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_lake" {
   }
 }
 
-# =============================================================================
+
 # Bucket Policy
-# =============================================================================
+
 
 resource "aws_s3_bucket_policy" "data_lake" {
   bucket = aws_s3_bucket.data_lake.id
@@ -329,9 +329,9 @@ resource "aws_s3_bucket_policy" "data_lake" {
   })
 }
 
-# =============================================================================
+
 # IAM Policies for Access
-# =============================================================================
+
 
 resource "aws_iam_policy" "s3_read" {
   name        = "${local.name_prefix}-s3-read"

@@ -1,5 +1,5 @@
 # Terraform Provider Configuration
-# ---------------------------------
+
 # AWS Provider version constraints for the S3 module
 
 terraform {

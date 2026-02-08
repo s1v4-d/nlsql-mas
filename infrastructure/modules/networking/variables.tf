@@ -1,5 +1,5 @@
 # Networking Module Variables
-# ----------------------------
+
 # Input variables for VPC, subnets, NAT Gateway, and VPC endpoints
 
 variable "project_name" {
