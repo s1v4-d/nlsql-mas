@@ -124,6 +124,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "logs" {
     id     = "archive-logs"
     status = "Enabled"
 
+    filter {}
+
     transition {
       days          = 30
       storage_class = "STANDARD_IA"
@@ -250,6 +252,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_lake" {
   rule {
     id     = "cleanup-incomplete-uploads"
     status = "Enabled"
+
+    filter {}
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 3

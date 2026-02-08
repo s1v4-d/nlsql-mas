@@ -1,6 +1,6 @@
-# Development Environment Variables
-# -----------------------------------
-# Override defaults for dev environment
+# Environment Variables
+# ----------------------
+# Configure environment via these variables
 
 project_name = "nlsql"
 environment  = "dev"

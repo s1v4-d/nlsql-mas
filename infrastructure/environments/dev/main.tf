@@ -1,6 +1,6 @@
-# Development Environment - Main Configuration
-# ---------------------------------------------
-# Provisions networking and S3 for dev environment
+# Environment Configuration
+# --------------------------
+# Single environment setup - use tfvars to configure for dev/staging/prod
 
 terraform {
   required_version = ">= 1.5.0"

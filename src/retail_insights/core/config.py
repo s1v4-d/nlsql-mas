@@ -1,8 +1,4 @@
-"""Application configuration using Pydantic Settings.
-
-This module provides centralized configuration management with
-environment variable loading and validation.
-"""
+"""Application configuration using Pydantic Settings with multi-file support."""
 
 from functools import lru_cache
 from typing import Literal
@@ -14,12 +10,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables.
 
-    All settings can be overridden via environment variables.
-    Secrets are handled securely using SecretStr.
+    Pydantic-settings natively loads from multiple .env files in priority order.
+    Later files override earlier ones. Secrets use SecretStr for security.
+
+    Priority (lowest to highest):
+    1. .env (base defaults)
+    2. env-files/dev.env (development overrides)
+    3. env-files/secrets/secrets.env (secrets, never committed)
+    4. OS environment variables (highest priority)
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "env-files/dev.env", "env-files/secrets/secrets.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -152,17 +154,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Get cached settings instance.
-
-    Returns:
-        Settings: Application settings loaded from environment.
-
-    Example:
-        ```python
-        from retail_insights.core.config import get_settings
-
-        settings = get_settings()
-        print(settings.APP_NAME)
-        ```
-    """
+    """Get cached settings instance."""
     return Settings()
