@@ -1,0 +1,76 @@
+"""FastAPI middleware for request context and observability."""
+
+from __future__ import annotations
+
+import time
+import uuid
+from collections.abc import Callable
+from contextvars import ContextVar
+
+import structlog
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
+
+request_id_var: ContextVar[str] = ContextVar("request_id", default="")
+
+
+class RequestContextMiddleware(BaseHTTPMiddleware):
+    """Middleware to bind request context to structlog for all log entries."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        super().__init__(app)
+        self.logger = structlog.get_logger("api.request")
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request_id_var.set(request_id)
+
+        structlog.contextvars.clear_contextvars()
+        structlog.contextvars.bind_contextvars(
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            client_ip=self._get_client_ip(request),
+        )
+
+        user_id = getattr(request.state, "user_id", None)
+        if user_id:
+            structlog.contextvars.bind_contextvars(user_id=user_id)
+
+        start_time = time.perf_counter()
+
+        try:
+            response = await call_next(request)
+            duration_ms = (time.perf_counter() - start_time) * 1000
+
+            if request.url.path not in ("/health", "/ready", "/metrics"):
+                self.logger.info(
+                    "request_completed",
+                    status_code=response.status_code,
+                    duration_ms=round(duration_ms, 2),
+                )
+
+            response.headers["X-Request-ID"] = request_id
+            return response
+
+        except Exception as exc:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            self.logger.exception(
+                "request_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                duration_ms=round(duration_ms, 2),
+            )
+            raise
+
+    def _get_client_ip(self, request: Request) -> str:
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return request.client.host if request.client else "unknown"
+
+
+def get_request_id() -> str:
+    """Get the current request ID from context."""
+    return request_id_var.get()
