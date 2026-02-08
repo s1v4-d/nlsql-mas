@@ -66,9 +66,14 @@ class SchemaRegistry:
             settings: Optional Settings for configuration.
         """
         self.cache_ttl = cache_ttl
-        self._sources = sources or []
         self._connector = connector
         self._settings = settings
+
+        # Auto-configure sources from settings if not provided
+        if sources:
+            self._sources = sources
+        else:
+            self._sources = self._configure_sources_from_settings(settings)
 
         # Thread-safe cache for schemas
         self._cache: TTLCache[str, TableSchema] = TTLCache(
@@ -86,6 +91,46 @@ class SchemaRegistry:
             "SchemaRegistry initialized",
             extra={"sources": len(self._sources), "cache_ttl": cache_ttl},
         )
+
+    def _configure_sources_from_settings(self, settings: Settings | None) -> list[DataSource]:
+        """Auto-configure data sources from settings."""
+        sources: list[DataSource] = []
+
+        if settings is None:
+            from retail_insights.core.config import get_settings
+
+            settings = get_settings()
+
+        # Add local data source if path exists
+        local_path = settings.LOCAL_DATA_PATH
+        if local_path:
+            from pathlib import Path
+
+            if Path(local_path).exists():
+                sources.append(
+                    DataSource(
+                        type="local",
+                        path=local_path,
+                        file_pattern="**/*.csv",  # Support CSV files
+                        enabled=True,
+                    )
+                )
+                logger.info(f"Added local data source: {local_path}")
+
+        # Add S3 data source if configured
+        s3_path = settings.S3_DATA_PATH
+        if s3_path and s3_path.startswith("s3://") and settings.AWS_ACCESS_KEY_ID:
+            sources.append(
+                DataSource(
+                    type="s3",
+                    path=s3_path,
+                    file_pattern="**/*.parquet",
+                    enabled=True,
+                )
+            )
+            logger.info(f"Added S3 data source: {s3_path}")
+
+        return sources
 
     @classmethod
     def get_instance(
