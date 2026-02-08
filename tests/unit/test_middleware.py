@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from retail_insights.api.middleware import (
     get_request_id,
     request_id_var,
@@ -33,8 +31,9 @@ class TestRequestContextMiddleware:
 
     def test_middleware_can_be_instantiated(self) -> None:
         """Should be able to create middleware instance."""
-        from retail_insights.api.middleware import RequestContextMiddleware
         from unittest.mock import MagicMock
+
+        from retail_insights.api.middleware import RequestContextMiddleware
 
         mock_app = MagicMock()
         middleware = RequestContextMiddleware(mock_app)

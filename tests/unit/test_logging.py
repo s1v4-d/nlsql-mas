@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from retail_insights.core.logging import (
     add_opentelemetry_context,
     add_service_context,
