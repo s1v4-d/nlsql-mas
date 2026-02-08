@@ -56,7 +56,7 @@ class DuckDBConnector:
             read_only: Whether to enforce read-only mode.
         """
         if settings:
-            self.data_path = Path(data_path or settings.DUCKDB_DATA_PATH)
+            self.data_path = Path(data_path or settings.LOCAL_DATA_PATH)
             self.memory_limit = memory_limit or settings.DUCKDB_MEMORY_LIMIT
             self.threads = threads or settings.DUCKDB_THREADS
             self._s3_bucket = settings.AWS_S3_BUCKET
