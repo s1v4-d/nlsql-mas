@@ -138,11 +138,13 @@ celerybeat.pid
 .env
 .envrc
 .venv
-env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Project secrets (keep template, ignore actual secrets)
+env-files/secrets/secrets.env
 
 # Spyder project settings
 .spyderproject

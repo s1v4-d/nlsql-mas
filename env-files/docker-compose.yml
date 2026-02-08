@@ -1,18 +1,6 @@
-# =============================================================================
-# Retail Insights Assistant - Docker Compose Development Stack
-# =============================================================================
-# Usage:
-#   docker compose up -d          # Start all services
-#   docker compose up -d db redis # Start only infrastructure
-#   docker compose logs -f api    # Follow API logs
-#   docker compose down -v        # Stop and remove volumes
-
 name: nlsql-dev
 
 services:
-  # ---------------------------------------------------------------------------
-  # PostgreSQL with pgvector extension
-  # ---------------------------------------------------------------------------
   db:
     image: pgvector/pgvector:pg16
     container_name: nlsql-postgres
@@ -35,9 +23,6 @@ services:
     networks:
       - backend
 
-  # ---------------------------------------------------------------------------
-  # Redis for caching
-  # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: nlsql-redis
@@ -55,24 +40,22 @@ services:
     networks:
       - backend
 
-  # ---------------------------------------------------------------------------
-  # FastAPI Backend
-  # ---------------------------------------------------------------------------
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
-      target: development  # Use development stage for hot reload
+      context: ..
+      dockerfile: env-files/docker/Dockerfile.api
+      target: development
     container_name: nlsql-api
     restart: unless-stopped
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
-      # Mount source for hot reload in development
-      - ./src:/app/src:ro
-      - ./data:/app/data:ro  # Local data files
+      - ../src:/app/src:ro
+      - ../data:/app/data:ro
+      - uv_cache:/root/.cache/uv
     env_file:
-      - .env
+      - ./secrets/secrets.env
+      - ./dev.env
     environment:
       # Database connection (uses Docker service name)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-retail_insights}
@@ -95,22 +78,20 @@ services:
       - frontend
       - backend
 
-  # ---------------------------------------------------------------------------
-  # Streamlit UI
-  # ---------------------------------------------------------------------------
   ui:
     build:
-      context: .
-      dockerfile: Dockerfile.streamlit
+      context: ..
+      dockerfile: env-files/docker/Dockerfile.ui
     container_name: nlsql-ui
     restart: unless-stopped
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
     volumes:
-      # Mount UI source for development
-      - ./src/retail_insights/ui:/app/src/retail_insights/ui:ro
+      - ../src/retail_insights/ui:/app/src/retail_insights/ui:ro
+      - uv_cache:/root/.cache/uv
     env_file:
-      - .env
+      - ./secrets/secrets.env
+      - ./dev.env
     environment:
       API_URL: http://api:8000
     depends_on:
@@ -119,9 +100,6 @@ services:
     networks:
       - frontend
 
-# =============================================================================
-# Volumes - Persistent data storage
-# =============================================================================
 volumes:
   postgres_data:
     name: nlsql_postgres_data
@@ -131,10 +109,11 @@ volumes:
     name: nlsql_redis_data
     labels:
       com.nlsql.description: "Redis persistent cache"
+  uv_cache:
+    name: nlsql_uv_cache
+    labels:
+      com.nlsql.description: "UV package cache for faster rebuilds"
 
-# =============================================================================
-# Networks
-# =============================================================================
 networks:
   frontend:
     name: nlsql_frontend
