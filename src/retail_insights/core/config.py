@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     )
     REDIS_TTL_SECONDS: int = Field(default=3600, ge=60)
 
+    # Query Cache Configuration
+    CACHE_ENABLED: bool = Field(default=True, description="Enable query caching")
+    CACHE_TTL_SECONDS: int = Field(default=300, ge=30, description="Cache TTL in seconds")
+    CACHE_L1_TTL_SECONDS: int = Field(default=60, ge=10, description="In-memory cache TTL")
+    CACHE_L1_MAX_SIZE: int = Field(default=100, ge=10, description="In-memory cache max entries")
+
     # AWS Configuration
     AWS_ACCESS_KEY_ID: str | None = None
     AWS_SECRET_ACCESS_KEY: SecretStr | None = None
@@ -122,6 +128,11 @@ class Settings(BaseSettings):
     def redis_configured(self) -> bool:
         """Check if Redis is configured."""
         return self.REDIS_URL is not None
+
+    @property
+    def cache_configured(self) -> bool:
+        """Check if caching is enabled and configured."""
+        return self.CACHE_ENABLED
 
     @property
     def aws_configured(self) -> bool:

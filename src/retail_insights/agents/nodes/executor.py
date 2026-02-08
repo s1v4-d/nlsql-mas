@@ -16,6 +16,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from retail_insights.core.exceptions import ExecutionError, ValidationError
+from retail_insights.engine.cache import CacheEntry, generate_cache_key, get_query_cache
 from retail_insights.engine.query_runner import QueryRunner, get_query_runner
 
 if TYPE_CHECKING:
@@ -284,6 +285,26 @@ async def execute_query(
 
     start_time = time.perf_counter()
 
+    cache = get_query_cache()
+    cache_key = generate_cache_key(sql)
+
+    cached_entry = await cache.get(cache_key)
+    if cached_entry is not None:
+        execution_time_ms = (time.perf_counter() - start_time) * 1000
+        logger.info(
+            "Cache hit",
+            extra={
+                "cache_key": cache_key,
+                "row_count": cached_entry.row_count,
+            },
+        )
+        return {
+            "query_results": cached_entry.data,
+            "row_count": cached_entry.row_count,
+            "execution_time_ms": execution_time_ms,
+            "execution_error": None,
+        }
+
     try:
         # Get configured query runner (use provided or default)
         runner = query_runner or get_query_runner(max_rows=MAX_RESULT_ROWS)
@@ -314,6 +335,14 @@ async def execute_query(
                 "execution_time_ms": execution_time_ms,
             },
         )
+
+        entry = CacheEntry(
+            data=result["data"],
+            columns=result["columns"],
+            row_count=result["row_count"],
+            sql=sql,
+        )
+        await cache.set(cache_key, entry)
 
         return {
             "query_results": result["data"],
