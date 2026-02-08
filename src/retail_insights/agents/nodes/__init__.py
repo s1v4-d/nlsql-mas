@@ -9,6 +9,10 @@ from retail_insights.agents.nodes.sql_generator import (
     create_mock_sql_generator,
     generate_sql,
 )
+from retail_insights.agents.nodes.summarizer import (
+    create_mock_summarizer,
+    summarize_results,
+)
 from retail_insights.agents.nodes.validator import (
     create_mock_validator,
     validate_sql,
@@ -23,4 +27,6 @@ __all__ = [
     "create_mock_validator",
     "execute_query",
     "create_mock_executor",
+    "summarize_results",
+    "create_mock_summarizer",
 ]
