@@ -11,7 +11,7 @@ These tests verify graceful error handling for various failure modes:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -148,7 +148,9 @@ class TestSQLValidationErrors:
 
         return test_app
 
-    @pytest.mark.xfail(reason="Route raises SQLGenerationError for validation failures - needs route-level error handler")
+    @pytest.mark.xfail(
+        reason="Route raises SQLGenerationError for validation failures - needs route-level error handler"
+    )
     def test_invalid_sql_returns_graceful_failure(self, app_with_invalid_sql_generator) -> None:
         """Test that invalid SQL generation returns graceful failure message."""
         client = TestClient(app_with_invalid_sql_generator)
@@ -224,7 +226,9 @@ class TestMaxRetriesExceeded:
 
         return test_app
 
-    @pytest.mark.xfail(reason="Route raises SQLGenerationError for max retries - needs route-level error handler")
+    @pytest.mark.xfail(
+        reason="Route raises SQLGenerationError for max retries - needs route-level error handler"
+    )
     def test_max_retries_returns_helpful_message(self, app_with_max_retries_exceeded) -> None:
         """Test that max retries exceeded returns helpful error message."""
         client = TestClient(app_with_max_retries_exceeded)

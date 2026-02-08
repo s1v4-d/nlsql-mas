@@ -12,7 +12,6 @@ from retail_insights.agents.graph import (
 from retail_insights.agents.state import (
     IntentType,
     QueryMode,
-    RetailInsightsState,
     ValidationStatus,
     create_initial_state,
 )

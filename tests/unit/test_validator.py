@@ -482,7 +482,9 @@ Columns: Amount (FLOAT), Category (VARCHAR), Date (VARCHAR), Status (VARCHAR)"""
     async def test_validation_with_quoted_columns(self) -> None:
         """Test validation with DuckDB quoted identifiers."""
         state = create_initial_state("Get by state", "test-thread")
-        state["generated_sql"] = 'SELECT "ship-state", COUNT(*) FROM amazon_sales GROUP BY "ship-state" LIMIT 10'
+        state["generated_sql"] = (
+            'SELECT "ship-state", COUNT(*) FROM amazon_sales GROUP BY "ship-state" LIMIT 10'
+        )
         state["schema_context"] = """Table: amazon_sales
 Columns: Amount (FLOAT), ship-state (VARCHAR), ship-city (VARCHAR)"""
 

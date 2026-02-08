@@ -161,14 +161,10 @@ class TestRouteQuery:
                 "retail_insights.agents.nodes.router.get_settings",
                 return_value=mock_settings,
             ),
-            patch(
-                "retail_insights.agents.nodes.router.ChatOpenAI"
-            ) as mock_chat,
+            patch("retail_insights.agents.nodes.router.ChatOpenAI") as mock_chat,
         ):
             mock_structured = AsyncMock(return_value=mock_router_decision)
-            mock_chat.return_value.with_structured_output.return_value.ainvoke = (
-                mock_structured
-            )
+            mock_chat.return_value.with_structured_output.return_value.ainvoke = mock_structured
 
             result = await route_query(state)
 
@@ -196,14 +192,10 @@ class TestRouteQuery:
                 "retail_insights.agents.nodes.router.get_settings",
                 return_value=mock_settings,
             ),
-            patch(
-                "retail_insights.agents.nodes.router.ChatOpenAI"
-            ) as mock_chat,
+            patch("retail_insights.agents.nodes.router.ChatOpenAI") as mock_chat,
         ):
             mock_structured = AsyncMock(return_value=chat_decision)
-            mock_chat.return_value.with_structured_output.return_value.ainvoke = (
-                mock_structured
-            )
+            mock_chat.return_value.with_structured_output.return_value.ainvoke = mock_structured
 
             result = await route_query(state)
 
@@ -230,14 +222,10 @@ class TestRouteQuery:
                 "retail_insights.agents.nodes.router.get_settings",
                 return_value=mock_settings,
             ),
-            patch(
-                "retail_insights.agents.nodes.router.ChatOpenAI"
-            ) as mock_chat,
+            patch("retail_insights.agents.nodes.router.ChatOpenAI") as mock_chat,
         ):
             mock_structured = AsyncMock(return_value=clarify_decision)
-            mock_chat.return_value.with_structured_output.return_value.ainvoke = (
-                mock_structured
-            )
+            mock_chat.return_value.with_structured_output.return_value.ainvoke = mock_structured
 
             result = await route_query(state)
 
@@ -257,12 +245,10 @@ class TestRouteQuery:
                 "retail_insights.agents.nodes.router.get_settings",
                 return_value=mock_settings,
             ),
-            patch(
-                "retail_insights.agents.nodes.router.ChatOpenAI"
-            ) as mock_chat,
+            patch("retail_insights.agents.nodes.router.ChatOpenAI") as mock_chat,
         ):
-            mock_chat.return_value.with_structured_output.return_value.ainvoke = (
-                AsyncMock(side_effect=Exception("API error"))
+            mock_chat.return_value.with_structured_output.return_value.ainvoke = AsyncMock(
+                side_effect=Exception("API error")
             )
 
             result = await route_query(state)
@@ -291,14 +277,10 @@ class TestRouteQuery:
                 "retail_insights.agents.nodes.router.get_settings",
                 return_value=mock_settings,
             ),
-            patch(
-                "retail_insights.agents.nodes.router.ChatOpenAI"
-            ) as mock_chat,
+            patch("retail_insights.agents.nodes.router.ChatOpenAI") as mock_chat,
         ):
             mock_structured = AsyncMock(return_value=summarize_decision)
-            mock_chat.return_value.with_structured_output.return_value.ainvoke = (
-                mock_structured
-            )
+            mock_chat.return_value.with_structured_output.return_value.ainvoke = mock_structured
 
             result = await route_query(state)
 

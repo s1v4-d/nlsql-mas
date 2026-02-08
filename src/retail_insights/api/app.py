@@ -78,7 +78,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(SQLGenerationError)
-    async def sql_generation_error_handler(request: Request, exc: SQLGenerationError) -> JSONResponse:
+    async def sql_generation_error_handler(
+        request: Request, exc: SQLGenerationError
+    ) -> JSONResponse:
         """Handle SQL generation failures after retries."""
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -120,7 +122,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(AuthenticationError)
-    async def authentication_error_handler(request: Request, exc: AuthenticationError) -> JSONResponse:
+    async def authentication_error_handler(
+        request: Request, exc: AuthenticationError
+    ) -> JSONResponse:
         """Handle authentication failures."""
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -132,7 +136,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RetailInsightsError)
-    async def retail_insights_error_handler(request: Request, exc: RetailInsightsError) -> JSONResponse:
+    async def retail_insights_error_handler(
+        request: Request, exc: RetailInsightsError
+    ) -> JSONResponse:
         """Handle generic application errors."""
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -54,7 +54,7 @@ class TestSQLGeneratorPrompts:
         """Test formatting prompt with validation errors for retry."""
         system, user = format_sql_generator_prompt(
             user_query="Show me revenue by region",
-            schema_context="Table: amazon_sales (Amount, \"ship-state\", Date)",
+            schema_context='Table: amazon_sales (Amount, "ship-state", Date)',
             validation_errors=["Invalid column 'region', did you mean 'ship-state'?"],
             previous_sql="SELECT region, SUM(Amount) FROM amazon_sales",
         )
@@ -108,9 +108,7 @@ class TestSQLGeneratorPrompts:
         """Test that all few-shot examples are SELECT statements."""
         for example in SQL_GENERATOR_FEW_SHOT_EXAMPLES:
             sql = example["sql"].strip().upper()
-            assert sql.startswith("SELECT"), (
-                f"Example not SELECT: {example['question']}"
-            )
+            assert sql.startswith("SELECT"), f"Example not SELECT: {example['question']}"
 
     def test_business_term_mappings_coverage(self) -> None:
         """Test that business term mappings cover common terms."""
@@ -389,10 +387,7 @@ class TestSQLGeneratorIntegration:
 
     def test_date_handling_examples(self) -> None:
         """Test that examples demonstrate proper date handling."""
-        date_examples = [
-            e for e in SQL_GENERATOR_FEW_SHOT_EXAMPLES
-            if "Date" in e["columns_used"]
-        ]
+        date_examples = [e for e in SQL_GENERATOR_FEW_SHOT_EXAMPLES if "Date" in e["columns_used"]]
 
         assert len(date_examples) > 0
 

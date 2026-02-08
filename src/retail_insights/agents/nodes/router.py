@@ -66,10 +66,12 @@ async def route_query(state: RetailInsightsState) -> dict:
 
     # Invoke LLM for classification
     try:
-        result: RouterDecision = await structured_llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
+        result: RouterDecision = await structured_llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+        )
 
         logger.info(
             "router_decision",

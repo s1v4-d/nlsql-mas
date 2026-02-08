@@ -105,7 +105,9 @@ MAX_ROWS_IN_PROMPT = 50
 MAX_STRING_LENGTH = 100
 
 
-def _truncate_value(value: str | int | float | bool | None, max_length: int = MAX_STRING_LENGTH) -> str:
+def _truncate_value(
+    value: str | int | float | bool | None, max_length: int = MAX_STRING_LENGTH
+) -> str:
     """Truncate a value for display in prompts.
 
     Args:
@@ -123,7 +125,7 @@ def _truncate_value(value: str | int | float | bool | None, max_length: int = MA
         return str(value)
     str_value = str(value)
     if len(str_value) > max_length:
-        return str_value[:max_length - 3] + "..."
+        return str_value[: max_length - 3] + "..."
     return str_value
 
 

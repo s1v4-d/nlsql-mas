@@ -377,7 +377,9 @@ class TestExecuteQueryWithDuckDB:
 
         assert result["query_results"] is None
         # Error message should contain the validation error
-        assert "DROP" in result["execution_error"] or "validation" in result["execution_error"].lower()
+        assert (
+            "DROP" in result["execution_error"] or "validation" in result["execution_error"].lower()
+        )
 
     @pytest.mark.asyncio
     async def test_execute_date_serialization(self, query_runner: QueryRunner):

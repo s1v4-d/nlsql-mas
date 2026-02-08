@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from random import Random
 
-
 CATEGORIES = ["Set", "kurta", "Western Dress", "Top", "Blouse", "Ethnic Dress", "Bottom"]
 STATES = ["MAHARASHTRA", "KARNATAKA", "DELHI", "TAMIL NADU", "TELANGANA", "GUJARAT", "WEST BENGAL"]
 SIZES = ["XS", "S", "M", "L", "XL", "XXL", "Free"]
@@ -74,19 +73,21 @@ def generate_sample_data(
             amount = round(base_amount * (0.5 + rng.random()), 2)
             qty = rng.randint(1, 5)
 
-            writer.writerow({
-                "Order ID": f"ORD-E2E-{i + 1:05d}",
-                "Date": order_date.strftime("%m-%d-%y"),
-                "Status": rng.choice(STATUSES),
-                "Fulfilment": rng.choice(["Amazon", "Merchant"]),
-                "Category": category,
-                "Size": rng.choice(SIZES),
-                "Qty": qty,
-                "Amount": amount,
-                "ship-city": f"{state}_CITY_{rng.randint(1, 5)}",
-                "ship-state": state,
-                "B2B": rng.choice(["TRUE", "FALSE"]),
-            })
+            writer.writerow(
+                {
+                    "Order ID": f"ORD-E2E-{i + 1:05d}",
+                    "Date": order_date.strftime("%m-%d-%y"),
+                    "Status": rng.choice(STATUSES),
+                    "Fulfilment": rng.choice(["Amazon", "Merchant"]),
+                    "Category": category,
+                    "Size": rng.choice(SIZES),
+                    "Qty": qty,
+                    "Amount": amount,
+                    "ship-city": f"{state}_CITY_{rng.randint(1, 5)}",
+                    "ship-state": state,
+                    "B2B": rng.choice(["TRUE", "FALSE"]),
+                }
+            )
 
     return output_file
 
