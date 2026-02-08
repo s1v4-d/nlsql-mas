@@ -116,6 +116,44 @@ variable "tags" {
   default     = {}
 }
 
+# ECS Variables
+variable "enable_ecs" {
+  type        = bool
+  description = "Enable ECS cluster"
+  default     = false
+}
+
+variable "ecs_log_retention_days" {
+  type        = number
+  description = "ECS log retention days"
+  default     = 7
+}
+
+variable "enable_execute_command" {
+  type        = bool
+  description = "Enable ECS Exec"
+  default     = true
+}
+
+# Aurora Variables
+variable "enable_aurora" {
+  type        = bool
+  description = "Enable Aurora PostgreSQL"
+  default     = false
+}
+
+variable "aurora_min_capacity" {
+  type        = number
+  description = "Aurora min ACU"
+  default     = 0.5
+}
+
+variable "aurora_max_capacity" {
+  type        = number
+  description = "Aurora max ACU"
+  default     = 4
+}
+
 # =============================================================================
 # Networking Module
 # =============================================================================
@@ -153,6 +191,89 @@ module "s3" {
   vpc_endpoint_id            = module.networking.s3_vpc_endpoint_id
   force_destroy              = true
   tags                       = var.tags
+}
+
+# =============================================================================
+# ECS Module (Optional)
+# =============================================================================
+
+module "ecs" {
+  source = "../../modules/ecs"
+  count  = var.enable_ecs ? 1 : 0
+
+  project_name                = var.project_name
+  environment                 = var.environment
+  aws_region                  = var.aws_region
+  vpc_id                      = module.networking.vpc_id
+  private_subnet_ids          = module.networking.private_subnet_ids
+  public_subnet_ids           = module.networking.public_subnet_ids
+  alb_security_group_id       = module.networking.alb_security_group_id
+  ecs_tasks_security_group_id = module.networking.ecs_tasks_security_group_id
+  s3_data_bucket_arn          = module.s3.data_lake_bucket_arn
+  log_retention_days          = var.ecs_log_retention_days
+  enable_execute_command      = var.enable_execute_command
+
+  # Dev-specific: Use Fargate Spot heavily
+  use_fargate_spot    = true
+  fargate_weight      = 20
+  fargate_spot_weight = 80
+  fargate_base        = 1
+
+  # Dev-specific: Smaller capacity
+  services = {
+    api = {
+      cpu               = 512
+      memory            = 1024
+      container_port    = 8000
+      health_check_path = "/health"
+      min_capacity      = 1
+      max_capacity      = 2
+      desired_count     = 1
+    }
+    streamlit = {
+      cpu               = 512
+      memory            = 1024
+      container_port    = 8501
+      health_check_path = "/_stcore/health"
+      min_capacity      = 1
+      max_capacity      = 2
+      desired_count     = 1
+    }
+  }
+
+  tags = var.tags
+}
+
+# =============================================================================
+# Aurora Module (Optional)
+# =============================================================================
+
+module "aurora" {
+  source = "../../modules/aurora"
+  count  = var.enable_aurora ? 1 : 0
+
+  project_name              = var.project_name
+  environment               = var.environment
+  aws_region                = var.aws_region
+  vpc_id                    = module.networking.vpc_id
+  database_subnet_ids       = module.networking.database_subnet_ids
+  ecs_security_group_id     = module.networking.ecs_tasks_security_group_id
+  aurora_security_group_id  = module.networking.aurora_security_group_id
+
+  # Dev-specific: Cost optimization
+  min_capacity                 = var.aurora_min_capacity
+  max_capacity                 = var.aurora_max_capacity
+  storage_type                 = "aurora"
+  backup_retention_period      = 7
+  skip_final_snapshot          = true
+  deletion_protection          = false
+  reader_count                 = 0
+  performance_insights_enabled = true
+  performance_insights_retention = 7
+  enhanced_monitoring_interval = 60
+  apply_immediately            = true
+
+  tags = var.tags
 }
 
 # =============================================================================
@@ -202,4 +323,36 @@ output "data_lake_bucket_name" {
 output "data_lake_bucket_arn" {
   description = "S3 data lake bucket ARN"
   value       = module.s3.data_lake_bucket_arn
+}
+
+# ECS Outputs (conditional)
+output "ecs_cluster_name" {
+  description = "ECS cluster name"
+  value       = var.enable_ecs ? module.ecs[0].cluster_name : null
+}
+
+output "ecs_alb_dns_name" {
+  description = "ECS ALB DNS name"
+  value       = var.enable_ecs ? module.ecs[0].alb_dns_name : null
+}
+
+output "ecr_repository_urls" {
+  description = "ECR repository URLs"
+  value       = var.enable_ecs ? module.ecs[0].ecr_repository_urls : null
+}
+
+# Aurora Outputs (conditional)
+output "aurora_cluster_endpoint" {
+  description = "Aurora cluster endpoint"
+  value       = var.enable_aurora ? module.aurora[0].cluster_endpoint : null
+}
+
+output "aurora_reader_endpoint" {
+  description = "Aurora reader endpoint"
+  value       = var.enable_aurora ? module.aurora[0].cluster_reader_endpoint : null
+}
+
+output "aurora_app_credentials_secret_arn" {
+  description = "Aurora app credentials secret ARN"
+  value       = var.enable_aurora ? module.aurora[0].app_credentials_secret_arn : null
 }

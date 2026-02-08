@@ -22,6 +22,16 @@ enable_intelligent_tiering = false
 enable_access_logging      = false
 use_customer_managed_key   = false
 
+# ECS Configuration (set to true to enable)
+enable_ecs             = false
+ecs_log_retention_days = 7
+enable_execute_command = true
+
+# Aurora Configuration (set to true to enable)
+enable_aurora        = false
+aurora_min_capacity  = 0.5
+aurora_max_capacity  = 4
+
 # Common Tags
 tags = {
   CostCenter  = "engineering"

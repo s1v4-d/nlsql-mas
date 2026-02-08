@@ -22,6 +22,19 @@ enable_intelligent_tiering = true
 enable_access_logging      = true
 use_customer_managed_key   = true
 
+# ECS Configuration
+enable_ecs             = true
+ecs_log_retention_days = 90
+enable_execute_command = false  # Disable in prod for security
+enable_https           = true
+# certificate_arn      = "arn:aws:acm:us-east-1:ACCOUNT:certificate/CERT-ID"
+
+# Aurora Configuration
+enable_aurora        = true
+aurora_min_capacity  = 2
+aurora_max_capacity  = 32
+aurora_reader_count  = 1
+
 # Common Tags
 tags = {
   CostCenter  = "production"
