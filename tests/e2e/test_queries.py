@@ -15,11 +15,6 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
 
-# =============================================================================
-# API Query Workflow Tests
-# =============================================================================
-
-
 class TestQueryAPIWorkflow:
     """E2E tests for the query API endpoint complete workflow."""
 
@@ -225,11 +220,6 @@ class TestStreamingEndpoint:
             assert len(events) >= 1
 
 
-# =============================================================================
-# Performance Benchmarks
-# =============================================================================
-
-
 class TestQueryPerformance:
     """Performance-related E2E tests."""
 
@@ -279,11 +269,6 @@ class TestQueryPerformance:
         assert elapsed_ms < 10000, f"3 queries took {elapsed_ms:.1f}ms, expected < 10000ms"
 
 
-# =============================================================================
-# Health and Readiness Checks
-# =============================================================================
-
-
 class TestHealthEndpoints:
     """E2E tests for health and readiness endpoints."""
 
@@ -300,11 +285,6 @@ class TestHealthEndpoints:
 
         assert response.status_code == 200
         assert response.json()["status"] == "ready"
-
-
-# =============================================================================
-# Concurrent Request Handling
-# =============================================================================
 
 
 class TestConcurrentRequests:

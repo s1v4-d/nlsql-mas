@@ -23,11 +23,6 @@ if TYPE_CHECKING:
     from retail_insights.agents.state import RetailInsightsState
 
 
-# =============================================================================
-# Environment Fixtures
-# =============================================================================
-
-
 @pytest.fixture(autouse=True)
 def mock_env():
     """Set required environment variables for E2E tests."""
@@ -44,11 +39,6 @@ def mock_env():
         get_settings.cache_clear()
         yield
         get_settings.cache_clear()
-
-
-# =============================================================================
-# Data Fixtures
-# =============================================================================
 
 
 @pytest.fixture(scope="session")
@@ -96,11 +86,6 @@ def duckdb_with_edge_cases(edge_case_data_path: Path):
 
     yield conn
     conn.close()
-
-
-# =============================================================================
-# Mock LLM Response Fixtures
-# =============================================================================
 
 
 ROUTER_RESPONSE_MAP = {
@@ -290,11 +275,6 @@ def mock_summarizer():
     return _mock_summarizer
 
 
-# =============================================================================
-# Graph Fixtures
-# =============================================================================
-
-
 @pytest.fixture
 def deterministic_graph(mock_router, mock_sql_generator, mock_summarizer, duckdb_connection):
     """Create a graph with mocked LLM nodes but real validator/executor."""
@@ -408,11 +388,6 @@ def mock_graph_simple():
     return graph
 
 
-# =============================================================================
-# API Application Fixtures
-# =============================================================================
-
-
 @pytest.fixture
 def mock_schema_registry():
     """Create a mock schema registry for E2E tests."""
@@ -496,11 +471,6 @@ def e2e_client(e2e_app: FastAPI) -> TestClient:
     return TestClient(e2e_app)
 
 
-# =============================================================================
-# State Creation Helpers
-# =============================================================================
-
-
 @pytest.fixture
 def create_state():
     """Factory fixture for creating initial workflow states."""
@@ -519,11 +489,6 @@ def create_state():
         )
 
     return _create_state
-
-
-# =============================================================================
-# Query Scenarios for Parametrized Tests
-# =============================================================================
 
 
 QUERY_SCENARIOS = [

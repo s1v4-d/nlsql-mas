@@ -1,15 +1,6 @@
 name: CD
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "infrastructure/**"
-      - "Dockerfile"
-      - "Dockerfile.streamlit"
-      - "pyproject.toml"
-      - "uv.lock"
   workflow_dispatch:
     inputs:
       environment:
@@ -21,7 +12,7 @@ on:
           - dev
           - prod
       deploy_infra:
-        description: "Deploy infrastructure"
+        description: "Deploy infrastructure changes"
         type: boolean
         default: true
       deploy_app:
@@ -41,38 +32,16 @@ env:
   ECR_REPO_UI: retail-insights-streamlit
 
 jobs:
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      infra: ${{ steps.filter.outputs.infra }}
-      app: ${{ steps.filter.outputs.app }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            infra:
-              - 'infrastructure/**'
-            app:
-              - 'src/**'
-              - 'Dockerfile'
-              - 'Dockerfile.streamlit'
-              - 'pyproject.toml'
-              - 'uv.lock'
-
   terraform:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.infra == 'true' || (github.event_name == 'workflow_dispatch' && inputs.deploy_infra)
+    if: inputs.deploy_infra
     runs-on: ubuntu-latest
     concurrency:
-      group: terraform-${{ github.event.inputs.environment || 'dev' }}
+      group: terraform-${{ inputs.environment }}
       cancel-in-progress: false
 
     defaults:
       run:
-        working-directory: infrastructure/environments/${{ github.event.inputs.environment || 'dev' }}
+        working-directory: infrastructure/environments/${{ inputs.environment }}
 
     steps:
       - uses: actions/checkout@v4
@@ -94,14 +63,13 @@ jobs:
         run: terraform plan -no-color -input=false -out=tfplan
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
         run: terraform apply -auto-approve tfplan
 
   build:
-    needs: [detect-changes, terraform]
+    needs: terraform
     if: |
       always() && 
-      (needs.detect-changes.outputs.app == 'true' || (github.event_name == 'workflow_dispatch' && inputs.deploy_app)) &&
+      inputs.deploy_app &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
@@ -143,7 +111,7 @@ jobs:
 
   deploy-dev:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: inputs.environment == 'dev'
     runs-on: ubuntu-latest
     environment: dev
 
@@ -197,8 +165,8 @@ jobs:
           wait-for-service-stability: true
 
   deploy-prod:
-    needs: deploy-dev
-    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+    needs: build
+    if: inputs.environment == 'prod'
     runs-on: ubuntu-latest
     environment: prod
 

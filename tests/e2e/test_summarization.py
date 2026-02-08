@@ -12,11 +12,6 @@ if TYPE_CHECKING:
     from fastapi.testclient import TestClient
 
 
-# =============================================================================
-# Summarization Intent Tests
-# =============================================================================
-
-
 class TestSummarizationWorkflow:
     """E2E tests for summarization intent handling."""
 
@@ -123,11 +118,6 @@ class TestSummarizeEndpoint:
         assert "key_metrics" in data or "summary" in data
 
 
-# =============================================================================
-# Chat Intent Tests
-# =============================================================================
-
-
 class TestChatWorkflow:
     """E2E tests for chat intent handling."""
 
@@ -184,11 +174,6 @@ class TestChatWorkflow:
         # The main check is that we get a valid conversational response
 
 
-# =============================================================================
-# Trend Analysis Tests
-# =============================================================================
-
-
 class TestTrendAnalysis:
     """E2E tests for trend analysis queries."""
 
@@ -226,11 +211,6 @@ class TestTrendAnalysis:
         assert data["success"] is True
 
 
-# =============================================================================
-# Multi-Intent Handling Tests
-# =============================================================================
-
-
 class TestMultiIntentHandling:
     """E2E tests for queries that could be multiple intents."""
 
@@ -257,11 +237,6 @@ class TestMultiIntentHandling:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-
-
-# =============================================================================
-# Response Quality Tests
-# =============================================================================
 
 
 class TestResponseQuality:

@@ -32,11 +32,6 @@ def reset_schema_registry():
     SchemaRegistry.reset_instance()
 
 
-# =============================================================================
-# Input Validation Error Tests
-# =============================================================================
-
-
 class TestInputValidationErrors:
     """E2E tests for input validation error handling."""
 
@@ -89,11 +84,6 @@ class TestInputValidationErrors:
 
         # Should return 422 (unprocessable) or 415 (unsupported media type)
         assert response.status_code in [415, 422]
-
-
-# =============================================================================
-# SQL Validation Error Tests
-# =============================================================================
 
 
 class TestSQLValidationErrors:
@@ -165,11 +155,6 @@ class TestSQLValidationErrors:
         data = response.json()
         assert data["success"] is True  # Request processed successfully
         assert "couldn't" in data["answer"].lower() or "error" in data["answer"].lower()
-
-
-# =============================================================================
-# Max Retries Exceeded Tests
-# =============================================================================
 
 
 class TestMaxRetriesExceeded:
@@ -244,11 +229,6 @@ class TestMaxRetriesExceeded:
         assert "couldn't" in data["answer"].lower() or "attempts" in data["answer"].lower()
 
 
-# =============================================================================
-# Execution Error Tests
-# =============================================================================
-
-
 class TestExecutionErrors:
     """E2E tests for query execution error handling."""
 
@@ -308,11 +288,6 @@ class TestExecutionErrors:
         assert response.status_code == 200
         data = response.json()
         assert "failed" in data["answer"].lower() or "error" in data["answer"].lower()
-
-
-# =============================================================================
-# Timeout Scenario Tests
-# =============================================================================
 
 
 class TestTimeoutScenarios:
@@ -379,11 +354,6 @@ class TestTimeoutScenarios:
         assert data["success"] is True
 
 
-# =============================================================================
-# Graph Initialization Error Tests
-# =============================================================================
-
-
 class TestGraphErrors:
     """E2E tests for graph-level error handling."""
 
@@ -429,11 +399,6 @@ class TestGraphErrors:
         assert response.status_code == 500
         data = response.json()
         assert "error" in data.get("detail", "").lower() or response.status_code == 500
-
-
-# =============================================================================
-# Clarification Intent Tests
-# =============================================================================
 
 
 class TestClarificationIntent:
@@ -499,11 +464,6 @@ class TestClarificationIntent:
         assert "?" in data["answer"] or "specify" in data["answer"].lower()
 
 
-# =============================================================================
-# Edge Case Error Tests
-# =============================================================================
-
-
 class TestEdgeCaseErrors:
     """E2E tests for edge case error handling."""
 
@@ -551,11 +511,6 @@ class TestEdgeCaseErrors:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-
-
-# =============================================================================
-# Rate Limiting / Abuse Prevention Tests
-# =============================================================================
 
 
 class TestAbusePrevention:
