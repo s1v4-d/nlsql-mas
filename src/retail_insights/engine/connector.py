@@ -128,9 +128,8 @@ class DuckDBConnector:
         conn.execute(f"SET memory_limit = '{self.memory_limit}';")
         conn.execute(f"SET threads = {self.threads};")
 
-        # Set access mode (enforced at query level for :memory:)
-        if self.read_only:
-            conn.execute("SET access_mode = 'READ_ONLY';")
+        # Note: access_mode cannot be changed after connection is opened
+        # For in-memory databases, we enforce read-only at the query validation level
 
         # Configure S3 httpfs if credentials provided
         if self._aws_access_key and self._aws_secret_key:
