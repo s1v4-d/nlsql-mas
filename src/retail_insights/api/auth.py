@@ -5,15 +5,14 @@ from __future__ import annotations
 import hmac
 import secrets
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader
 
-from retail_insights.core.config import get_settings
+from retail_insights.core.config import Settings, get_settings
 
-if TYPE_CHECKING:
-    from retail_insights.core.config import Settings
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 class ApiKeyScope(StrEnum):
@@ -35,7 +34,7 @@ def _constant_time_compare(a: str, b: str) -> bool:
 def verify_api_key(
     request: Request,
     api_key: str | None = Security(api_key_header),
-    settings: Settings = Depends(get_settings),
+    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> str | None:
     """Verify API key if authentication is enabled.
 
@@ -80,7 +79,7 @@ def verify_api_key(
 def require_admin_key(
     request: Request,
     api_key: str | None = Security(api_key_header),
-    settings: Settings = Depends(get_settings),
+    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> str:
     """Require admin API key for protected endpoints.
 
@@ -113,7 +112,7 @@ def require_admin_key(
 
 def optional_api_key(
     api_key: str | None = Security(api_key_header),
-    settings: Settings = Depends(get_settings),
+    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> str | None:
     """Get API key if provided (for analytics/logging).
 

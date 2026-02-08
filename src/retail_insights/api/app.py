@@ -165,9 +165,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    from slowapi.errors import RateLimitExceeded
+
     from retail_insights.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
     from retail_insights.api.rate_limit import get_limiter, get_rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
 
     limiter = get_limiter(settings)
     app.state.limiter = limiter

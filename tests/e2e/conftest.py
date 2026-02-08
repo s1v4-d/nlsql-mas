@@ -32,12 +32,16 @@ def mock_env():
             "OPENAI_API_KEY": "test-e2e-api-key",
             "DEBUG": "true",
             "ENVIRONMENT": "development",
+            "RATE_LIMIT_ENABLED": "false",
         },
     ):
+        from retail_insights.api.rate_limit import reset_limiter
         from retail_insights.core.config import get_settings
 
+        reset_limiter()
         get_settings.cache_clear()
         yield
+        reset_limiter()
         get_settings.cache_clear()
 
 

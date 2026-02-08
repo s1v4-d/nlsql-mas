@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from retail_insights.api.rate_limit import (
     _get_key_func,
     get_limiter,
