@@ -1,6 +1,11 @@
 name: CD
 
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
   workflow_dispatch:
     inputs:
       deploy_infra:
@@ -19,14 +24,15 @@ permissions:
 env:
   AWS_REGION: us-east-1
   TF_VERSION: "1.9.0"
+  CLUSTER_NAME: retail-insights-dev
   ECR_REPO_API: retail-insights-api
   ECR_REPO_UI: retail-insights-streamlit
 
 jobs:
   terraform:
-    if: inputs.deploy_infra
+    name: Terraform Apply
+    if: inputs.deploy_infra || github.event_name == 'push'
     runs-on: ubuntu-latest
-    environment: dev
     concurrency:
       group: terraform-dev
       cancel-in-progress: false
@@ -57,10 +63,11 @@ jobs:
         run: terraform apply -auto-approve tfplan
 
   build:
+    name: Build Docker Images
     needs: terraform
     if: |
       always() &&
-      inputs.deploy_app &&
+      (inputs.deploy_app || github.event_name == 'push') &&
       (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
@@ -101,9 +108,9 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
+    name: Deploy to ECS
     needs: build
     runs-on: ubuntu-latest
-    environment: dev
 
     steps:
       - uses: actions/checkout@v4
@@ -118,7 +125,7 @@ jobs:
 
       - name: Get API task definition
         run: |
-          aws ecs describe-task-definition --task-definition retail-insights-dev-api \
+          aws ecs describe-task-definition --task-definition ${{ env.CLUSTER_NAME }}-api \
             --query taskDefinition > task-def-api.json
 
       - name: Render API task definition
@@ -134,12 +141,12 @@ jobs:
         with:
           task-definition: ${{ steps.api-task.outputs.task-definition }}
           service: api
-          cluster: retail-insights-dev
+          cluster: ${{ env.CLUSTER_NAME }}
           wait-for-service-stability: true
 
       - name: Get UI task definition
         run: |
-          aws ecs describe-task-definition --task-definition retail-insights-dev-streamlit \
+          aws ecs describe-task-definition --task-definition ${{ env.CLUSTER_NAME }}-streamlit \
             --query taskDefinition > task-def-ui.json
 
       - name: Render UI task definition
@@ -155,5 +162,5 @@ jobs:
         with:
           task-definition: ${{ steps.ui-task.outputs.task-definition }}
           service: streamlit
-          cluster: retail-insights-dev
+          cluster: ${{ env.CLUSTER_NAME }}
           wait-for-service-stability: true
