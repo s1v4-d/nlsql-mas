@@ -3,7 +3,6 @@
 Tests the helper functions for API integration and data formatting.
 """
 
-import os
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -52,7 +51,6 @@ class TestAPIIntegration:
             mock_client.return_value = mock_client_instance
 
             # Import after mocking
-            import importlib
             import sys
 
             # Mock streamlit before importing
@@ -104,10 +102,12 @@ class TestDataExport:
 
     def test_csv_export_format(self):
         """Test CSV export generates valid format."""
-        df = pd.DataFrame([
-            {"Category": "Set", "Revenue": 2100000},
-            {"Category": "Kurta", "Revenue": 1800000},
-        ])
+        df = pd.DataFrame(
+            [
+                {"Category": "Set", "Revenue": 2100000},
+                {"Category": "Kurta", "Revenue": 1800000},
+            ]
+        )
 
         csv_data = df.to_csv(index=False).encode("utf-8")
         assert b"Category,Revenue" in csv_data

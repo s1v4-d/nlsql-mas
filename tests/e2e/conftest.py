@@ -274,10 +274,16 @@ def mock_summarizer():
             if row_count == 1 and len(results[0]) == 1:
                 # Single value result (like total, count, avg)
                 key, value = list(results[0].items())[0]
-                return {"final_answer": f"The {key} is {value:,.2f}" if isinstance(value, float) else f"The {key} is {value}"}
+                return {
+                    "final_answer": f"The {key} is {value:,.2f}"
+                    if isinstance(value, float)
+                    else f"The {key} is {value}"
+                }
 
             # Multiple rows
-            return {"final_answer": f"Query returned {row_count} results. The data shows the requested breakdown."}
+            return {
+                "final_answer": f"Query returned {row_count} results. The data shows the requested breakdown."
+            }
 
         return {"final_answer": "No results found matching your query."}
 
@@ -292,11 +298,11 @@ def mock_summarizer():
 @pytest.fixture
 def deterministic_graph(mock_router, mock_sql_generator, mock_summarizer, duckdb_connection):
     """Create a graph with mocked LLM nodes but real validator/executor."""
+    from langgraph.graph import END, StateGraph
+
     from retail_insights.agents.nodes.executor import execute_query
     from retail_insights.agents.nodes.validator import validate_sql
     from retail_insights.agents.state import RetailInsightsState
-
-    from langgraph.graph import END, StateGraph
 
     # Patch DuckDB connection for executor
     with patch("retail_insights.engine.connector.DuckDBConnector") as mock_connector_cls:
@@ -338,7 +344,12 @@ def deterministic_graph(mock_router, mock_sql_generator, mock_summarizer, duckdb
         workflow.add_conditional_edges(
             "router",
             route_by_intent,
-            {"sql_generator": "sql_generator", "executor": "executor", "summarizer": "summarizer", END: END},
+            {
+                "sql_generator": "sql_generator",
+                "executor": "executor",
+                "summarizer": "summarizer",
+                END: END,
+            },
         )
         workflow.add_edge("sql_generator", "validator")
         workflow.add_conditional_edges(
@@ -518,7 +529,10 @@ def create_state():
 QUERY_SCENARIOS = [
     pytest.param(
         "What are the top 5 categories by revenue?",
-        {"expected_intent": "query", "expected_sql_contains": ["Category", "SUM", "GROUP BY", "LIMIT"]},
+        {
+            "expected_intent": "query",
+            "expected_sql_contains": ["Category", "SUM", "GROUP BY", "LIMIT"],
+        },
         id="top_categories",
     ),
     pytest.param(

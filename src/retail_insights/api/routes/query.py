@@ -26,7 +26,6 @@ from retail_insights.models.requests import QueryRequest, SummarizeRequest
 from retail_insights.models.responses import ErrorResponse, QueryResult, SummaryResult
 
 if TYPE_CHECKING:
-
     pass
 
 logger = logging.getLogger(__name__)

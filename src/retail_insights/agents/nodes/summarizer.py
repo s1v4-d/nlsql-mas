@@ -69,10 +69,12 @@ async def summarize_results(state: RetailInsightsState) -> dict:
     )
 
     try:
-        response = await llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
+        response = await llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+        )
 
         final_answer = response.content
 

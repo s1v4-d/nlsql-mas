@@ -204,8 +204,7 @@ def _check_security(ast: exp.Expression, sql: str) -> list[str]:
         # Check if keyword appears as standalone word (not part of identifier)
         if f" {keyword} " in f" {sql_upper} ":
             errors.append(
-                f"Blocked operation: {keyword} is not allowed. "
-                "Only SELECT queries are permitted."
+                f"Blocked operation: {keyword} is not allowed. Only SELECT queries are permitted."
             )
 
     return errors

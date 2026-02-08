@@ -68,29 +68,41 @@ def _classify_error(error: Exception) -> tuple[DuckDBErrorType, str]:
         # Syntax errors - specific to parsing
         (DuckDBErrorType.SYNTAX_ERROR, ["syntax error", "parser error", "parse error"]),
         # Type mismatch - specific phrases
-        (DuckDBErrorType.TYPE_MISMATCH, [
-            "type mismatch",
-            "cannot cast",
-            "conversion failed",
-            "type error",
-        ]),
+        (
+            DuckDBErrorType.TYPE_MISMATCH,
+            [
+                "type mismatch",
+                "cannot cast",
+                "conversion failed",
+                "type error",
+            ],
+        ),
         # IO errors - network/file access
-        (DuckDBErrorType.IO_ERROR, [
-            "i/o error",
-            "could not read",
-            "file not found",
-            "s3",
-            "http",
-        ]),
+        (
+            DuckDBErrorType.IO_ERROR,
+            [
+                "i/o error",
+                "could not read",
+                "file not found",
+                "s3",
+                "http",
+            ],
+        ),
         # Column errors - check "column" keyword (before table)
-        (DuckDBErrorType.COLUMN_NOT_FOUND, ["unknown column", "column.*not found", "column.*does not exist"]),
+        (
+            DuckDBErrorType.COLUMN_NOT_FOUND,
+            ["unknown column", "column.*not found", "column.*does not exist"],
+        ),
         # Table errors - generic "table" patterns
-        (DuckDBErrorType.TABLE_NOT_FOUND, [
-            "table.*does not exist",
-            "table.*not found",
-            "no such table",
-            "table with name",
-        ]),
+        (
+            DuckDBErrorType.TABLE_NOT_FOUND,
+            [
+                "table.*does not exist",
+                "table.*not found",
+                "no such table",
+                "table with name",
+            ],
+        ),
     ]
 
     import re
@@ -122,28 +134,23 @@ def _format_error_for_llm(
             "Check for missing commas, unclosed quotes, or invalid keywords."
         ),
         DuckDBErrorType.TABLE_NOT_FOUND: (
-            "Table not found: {error}. "
-            "Verify the table name matches one from the available tables."
+            "Table not found: {error}. Verify the table name matches one from the available tables."
         ),
         DuckDBErrorType.COLUMN_NOT_FOUND: (
-            "Column not found: {error}. "
-            "Check that column names match the table schema."
+            "Column not found: {error}. Check that column names match the table schema."
         ),
         DuckDBErrorType.TYPE_MISMATCH: (
-            "Type error: {error}. "
-            "Consider using CAST() or TRY_CAST() for type conversions."
+            "Type error: {error}. Consider using CAST() or TRY_CAST() for type conversions."
         ),
         DuckDBErrorType.DIVISION_BY_ZERO: (
-            "Division by zero error: {error}. "
-            "Add a check for zero values in the denominator."
+            "Division by zero error: {error}. Add a check for zero values in the denominator."
         ),
         DuckDBErrorType.OUT_OF_MEMORY: (
             "Query too resource-intensive: {error}. "
             "Add more restrictive WHERE filters or reduce LIMIT."
         ),
         DuckDBErrorType.IO_ERROR: (
-            "Data access error: {error}. "
-            "There may be an issue accessing the data source."
+            "Data access error: {error}. There may be an issue accessing the data source."
         ),
         DuckDBErrorType.TIMEOUT: (
             "Query timed out: {error}. "

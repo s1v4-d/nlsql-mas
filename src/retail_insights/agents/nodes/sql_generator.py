@@ -80,10 +80,12 @@ async def generate_sql(state: RetailInsightsState) -> dict:
 
     # Invoke LLM for SQL generation
     try:
-        result: SQLGenerationResult = await structured_llm.ainvoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ])
+        result: SQLGenerationResult = await structured_llm.ainvoke(
+            [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+        )
 
         logger.info(
             "sql_generated",

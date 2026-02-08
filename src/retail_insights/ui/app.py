@@ -155,7 +155,9 @@ def display_error(response: dict[str, Any]) -> None:
 
     if error_type == "connection":
         st.error(f"🔌 {message}")
-        st.info("💡 Make sure the API server is running: `uv run uvicorn retail_insights.api.app:app`")
+        st.info(
+            "💡 Make sure the API server is running: `uv run uvicorn retail_insights.api.app:app`"
+        )
     elif error_type == "timeout":
         st.error(f"⏱️ {message}")
         st.info("💡 Try adding date filters or limiting your query scope.")
@@ -414,19 +416,23 @@ def render_main_chat() -> None:
                     if exec_time:
                         st.caption(f"⏱️ {exec_time:.0f}ms")
 
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": answer,
-                        "data": data,
-                        "sql": sql,
-                        "execution_time": exec_time,
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": answer,
+                            "data": data,
+                            "sql": sql,
+                            "execution_time": exec_time,
+                        }
+                    )
                 else:
                     display_error(response)
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": f"❌ {response.get('message', 'Query failed')}",
-                    })
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": f"❌ {response.get('message', 'Query failed')}",
+                        }
+                    )
 
             last_msg["processed"] = True
 

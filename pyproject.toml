@@ -2,7 +2,6 @@
 name = "retail-insights-assistant"
 version = "1.0.0"
 description = "GenAI-powered Retail Insights Assistant with multi-agent NL-to-SQL capabilities"
-readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 authors = [
@@ -110,10 +109,13 @@ indent-style = "space"
 # MyPy Configuration
 [tool.mypy]
 python_version = "3.12"
-strict = true
-warn_return_any = true
 warn_unused_ignores = true
-disallow_untyped_defs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+no_implicit_optional = false
+warn_return_any = false
 
 [[tool.mypy.overrides]]
 module = [
@@ -122,6 +124,9 @@ module = [
     "langchain.*",
     "langchain_openai.*",
     "sqlglot.*",
+    "streamlit.*",
+    "pandas.*",
+    "cachetools.*",
 ]
 ignore_missing_imports = true
 

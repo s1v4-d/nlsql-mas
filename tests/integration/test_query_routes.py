@@ -240,6 +240,7 @@ class TestQueryStreamEndpoint:
 
     def test_stream_returns_sse(self, client: TestClient, mock_graph) -> None:
         """Test streaming endpoint returns SSE format."""
+
         # Need to setup fresh async mock for streaming
         async def fresh_stream(state, config=None, stream_mode=None):
             yield {"router": {"intent": "query"}}
@@ -256,6 +257,7 @@ class TestQueryStreamEndpoint:
 
     def test_stream_disables_buffering(self, client: TestClient, mock_graph) -> None:
         """Test streaming response has buffering disabled."""
+
         async def fresh_stream(state, config=None, stream_mode=None):
             yield {"router": {"intent": "query"}}
 
