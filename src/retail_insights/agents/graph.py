@@ -92,9 +92,10 @@ async def sql_generator_node(state: RetailInsightsState) -> dict:
 
     TODO: Implement in TICKET-010 with LLM-based SQL generation.
     """
+    placeholder_sql = "SELECT * FROM sales LIMIT 10"  # nosec B608 - static placeholder query
     return {
-        "generated_sql": f"SELECT * FROM sales LIMIT 10 -- placeholder for: {state['user_query']}",
-        "sql_explanation": "Placeholder SQL query",
+        "generated_sql": placeholder_sql,
+        "sql_explanation": f"Placeholder SQL query for: {state['user_query']}",
         "tables_used": ["sales"],
         "retry_count": state.get("retry_count", 0) + 1,
     }

@@ -166,3 +166,8 @@ exclude_lines = [
 exclude_dirs = ["tests", ".venv", "notebooks"]
 skips = ["B101"]  # Skip assert warnings (used in tests)
 targets = ["src/retail_insights"]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.3",
+]

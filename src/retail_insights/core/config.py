@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
     # API Configuration
-    API_HOST: str = "0.0.0.0"
+    API_HOST: str = "0.0.0.0"  # nosec B104 - intentional for container deployments
     API_PORT: int = 8000
     API_WORKERS: int = 1
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])

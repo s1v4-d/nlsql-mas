@@ -26,9 +26,9 @@ def add_opentelemetry_context(
             event_dict["trace_id"] = format(ctx.trace_id, "032x")
             event_dict["span_id"] = format(ctx.span_id, "016x")
     except ImportError:
-        pass
-    except Exception:
-        pass
+        pass  # nosec B110 - OpenTelemetry is optional, silently skip if not installed
+    except Exception:  # noqa: BLE001
+        pass  # nosec B110 - OpenTelemetry errors should not break logging
     return event_dict
 
 

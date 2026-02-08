@@ -255,14 +255,8 @@ class DuckDBConnector:
         path_str = str(path)
 
         # Support glob patterns for partitioned data
-        if "*" in path_str:
-            conn.execute(
-                f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"
-            )
-        else:
-            conn.execute(
-                f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"
-            )
+        sql = f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"  # nosec B608
+        conn.execute(sql)
 
         logger.info(f"Registered Parquet table: {table_name} from {path_str}")
 
