@@ -1,12 +1,4 @@
-# =============================================================================
-# Retail Insights FastAPI - Production Dockerfile
-# =============================================================================
-# Multi-stage build with uv for optimal layer caching and small final image.
-# Uses Python 3.12 on Debian Bookworm (slim variant).
 
-# -----------------------------------------------------------------------------
-# Stage 1: Builder - Install dependencies and build the project
-# -----------------------------------------------------------------------------
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 # uv optimization flags
@@ -29,10 +21,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 
-# -----------------------------------------------------------------------------
-# Stage 2: Development - Full source with hot reload support
-# -----------------------------------------------------------------------------
+
 FROM builder AS development
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Keep dev dependencies for testing
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -47,9 +41,6 @@ EXPOSE 8000
 CMD ["uvicorn", "retail_insights.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
 
-# -----------------------------------------------------------------------------
-# Stage 3: Production - Minimal runtime image
-# -----------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS production
 
 # Python settings for production

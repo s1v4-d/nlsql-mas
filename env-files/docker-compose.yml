@@ -27,7 +27,7 @@ services:
     image: redis:7-alpine
     container_name: nlsql-redis
     restart: unless-stopped
-    command: redis-server --save 60 1 --loglevel warning
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -57,10 +57,8 @@ services:
       - ./secrets/secrets.env
       - ./dev.env
     environment:
-      # Database connection (uses Docker service name)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-retail_insights}
       REDIS_URL: redis://redis:6379/0
-      # Development settings
       DEBUG: "true"
       LOG_LEVEL: DEBUG
     depends_on:
@@ -74,6 +72,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    develop:
+      watch:
+        - action: sync
+          path: ../src
+          target: /app/src
+          ignore:
+            - __pycache__/
+            - "*.pyc"
+        - action: rebuild
+          path: ../pyproject.toml
+        - action: rebuild
+          path: ../uv.lock
     networks:
       - frontend
       - backend
@@ -97,6 +107,14 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ../src/retail_insights/ui
+          target: /app/src/retail_insights/ui
+          ignore:
+            - __pycache__/
+            - "*.pyc"
     networks:
       - frontend
 

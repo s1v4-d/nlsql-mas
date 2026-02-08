@@ -1,80 +1,194 @@
 # Makefile for Retail Insights Assistant
-
 NAME := retail_insights
 SRC_DIR := src/$(NAME)
 TESTS_DIR := tests
-UV := uv
 PORT ?= 8000
 COMPOSE_FILE := env-files/docker-compose.yml
 SECRETS_FILE := env-files/secrets/secrets.env
 SECRETS_EXAMPLE := env-files/secrets/secrets.env.example
 
+# Platform detection
 ifeq ($(OS),Windows_NT)
+    DETECTED_OS := windows
     VENV_BIN := .venv/Scripts
     RM := del /F /Q
     RMDIR := rmdir /S /Q
     FIND_PYCACHE := for /d /r . %%d in (__pycache__) do @if exist "%%d" rd /s /q "%%d"
     FIND_PYC := del /S /Q *.pyc 2>nul
     COPY := copy
-    FILE_EXISTS = if exist $(1)
+    SHELL_CMD := powershell -NoProfile -Command
+    NULL := 2>nul
 else
+    DETECTED_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
     VENV_BIN := .venv/bin
     RM := rm -f
     RMDIR := rm -rf
     FIND_PYCACHE := find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
     FIND_PYC := find . -type f -name "*.pyc" -delete 2>/dev/null || true
     COPY := cp
-    FILE_EXISTS = test -f $(1) &&
+    NULL := 2>/dev/null || true
 endif
 
+# Tool detection
+HAS_UV := $(shell uv --version $(NULL) && echo 1)
+HAS_DOCKER := $(shell docker --version $(NULL) && echo 1)
+HAS_TERRAFORM := $(shell terraform --version $(NULL) && echo 1)
+UV := uv
+COMPOSE := docker compose -f $(COMPOSE_FILE)
+
 .DEFAULT_GOAL := help
-.PHONY: help init build start stop logs dev lint format typecheck test clean
+.PHONY: help init init-infra build start start-d start-db stop stop-v logs watch dev \
+        run-ui lint lint-fix format typecheck check test test-unit test-integration test-cov \
+        clean clean-pyc clean-cache ci-lint ci-test qa shell-api shell-db ps info install-uv
 
 help:
-	@echo.
-	@echo Retail Insights Assistant
-	@echo ========================
-	@echo.
-	@echo   init     Install dependencies and setup secrets
-	@echo   build    Build Docker images (stops first)
-	@echo   start    Start all services (foreground)
-	@echo   stop     Stop services and clean images
-	@echo   logs     Show service logs
-	@echo   dev      Run API locally with hot-reload
-	@echo.
-	@echo   lint     Run linter
-	@echo   format   Format code
-	@echo   test     Run tests
-	@echo   clean    Remove cache files
-	@echo.
+	@echo ""
+	@echo "Retail Insights Assistant"
+	@echo "========================="
+	@echo ""
+	@echo "Setup:"
+	@echo "  init         Install dependencies, setup secrets, pre-commit"
+	@echo "  init-infra   Initialize Terraform for infrastructure"
+	@echo "  info         Show detected environment info"
+	@echo ""
+	@echo "Docker:"
+	@echo "  build        Build all Docker images"
+	@echo "  start        Start all services (foreground)"
+	@echo "  start-d      Start all services (detached)"
+	@echo "  start-db     Start database services only (postgres + redis)"
+	@echo "  stop         Stop services and prune images"
+	@echo "  stop-v       Stop and remove volumes (destructive)"
+	@echo "  watch        Start with hot reload (Docker Compose Watch)"
+	@echo "  logs         Follow all service logs"
+	@echo "  ps           Show running containers"
+	@echo "  shell-api    Open shell in API container"
+	@echo "  shell-db     Open psql in database container"
+	@echo ""
+	@echo "Local Development:"
+	@echo "  dev          Run API locally with hot-reload"
+	@echo "  run-ui       Run Streamlit UI locally"
+	@echo ""
+	@echo "Quality:"
+	@echo "  lint         Run linter"
+	@echo "  format       Format code"
+	@echo "  typecheck    Run mypy type checker"
+	@echo "  test         Run all tests"
+	@echo "  qa           Run format, lint, typecheck, test"
+	@echo ""
 
-init: $(SECRETS_FILE)
-	$(UV) sync --extra all
-	@echo.
-	@echo Dependencies installed. Edit $(SECRETS_FILE) with your API keys.
+info:
+	@echo "OS: $(DETECTED_OS)"
+	@echo "uv: $(if $(HAS_UV),installed,NOT FOUND)"
+	@echo "Docker: $(if $(HAS_DOCKER),installed,NOT FOUND)"
+	@echo "Terraform: $(if $(HAS_TERRAFORM),installed,NOT FOUND)"
+
+install-uv:
+ifndef HAS_UV
+ifeq ($(OS),Windows_NT)
+	@echo Installing uv...
+	@powershell -NoProfile -Command "irm https://astral.sh/uv/install.ps1 | iex"
+else
+	@echo Installing uv...
+	@curl -LsSf https://astral.sh/uv/install.sh | sh
+endif
+else
+	@echo uv already installed
+endif
+
+check-docker:
+ifndef HAS_DOCKER
+	$(error Docker not found. Install Docker Desktop from https://docker.com)
+endif
+	@docker info >$(if $(filter $(OS),Windows_NT),nul,/dev/null) 2>&1 || (echo "Docker daemon not running. Start Docker Desktop." && exit 1)
 
 $(SECRETS_FILE):
 ifeq ($(OS),Windows_NT)
+	@if not exist "env-files\secrets" mkdir "env-files\secrets"
 	@if not exist "$(SECRETS_FILE)" $(COPY) "$(SECRETS_EXAMPLE)" "$(SECRETS_FILE)"
 else
-	@if [ ! -f "$(SECRETS_FILE)" ]; then $(COPY) "$(SECRETS_EXAMPLE)" "$(SECRETS_FILE)"; fi
+	@mkdir -p env-files/secrets
+	@test -f "$(SECRETS_FILE)" || $(COPY) "$(SECRETS_EXAMPLE)" "$(SECRETS_FILE)"
 endif
 	@echo Created $(SECRETS_FILE) from template
 
-build: stop
-	docker compose -f $(COMPOSE_FILE) build
-	@echo.
-	@echo Build complete. Run 'make start' to launch.
+init: install-uv $(SECRETS_FILE)
+	$(UV) sync --extra all
+	@echo ""
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "if (Get-Command pre-commit -ErrorAction SilentlyContinue) { uv run pre-commit install } else { Write-Host 'Run: uv run pre-commit install' }"
+else
+	@command -v pre-commit >/dev/null 2>&1 && $(UV) run pre-commit install || echo "Run: uv run pre-commit install"
+endif
+	@echo ""
+	@echo "=== Setup Complete ==="
+	@echo "1. Edit $(SECRETS_FILE) with your API keys"
+	@echo "2. Run 'make dev' for local development (API only)"
+	@echo "3. Run 'make build && make start' for full Docker stack"
+	@echo ""
 
-start:
-	docker compose -f $(COMPOSE_FILE) up
+init-infra:
+ifndef HAS_TERRAFORM
+ifeq ($(OS),Windows_NT)
+	@echo Terraform not found. Install with: winget install Hashicorp.Terraform
+else ifeq ($(DETECTED_OS),darwin)
+	@echo Terraform not found. Install with: brew install terraform
+else
+	@echo Terraform not found. Install from: https://developer.hashicorp.com/terraform/downloads
+endif
+	@exit 1
+endif
+	cd infrastructure/environments/dev && terraform init
+	@echo "Terraform initialized. Run 'cd infrastructure/environments/dev && terraform plan'"
+
+build: check-docker stop
+	$(COMPOSE) build
+	@echo ""
+	@echo "Build complete. Run 'make start' to launch all services."
+
+start: check-docker
+	$(COMPOSE) up
+
+start-d: check-docker
+	$(COMPOSE) up -d
+	@echo "Services started in background. Run 'make logs' to view output."
+
+start-db: check-docker
+	$(COMPOSE) up -d db redis
+	@echo "Waiting for database health check..."
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -Command "Start-Sleep -Seconds 5; docker compose -f $(COMPOSE_FILE) exec db pg_isready -U postgres -d retail_insights"
+else
+	@sleep 5 && $(COMPOSE) exec db pg_isready -U postgres -d retail_insights || sleep 3
+endif
+	@echo "Database services ready!"
+	@echo "PostgreSQL: localhost:5432"
+	@echo "Redis: localhost:6379"
 
 stop:
-	docker compose -f $(COMPOSE_FILE) down --remove-orphans
-	docker image prune -f
+	-$(COMPOSE) down --remove-orphans 2>$(if $(filter $(OS),Windows_NT),nul,/dev/null)
+	-docker image prune -f 2>$(if $(filter $(OS),Windows_NT),nul,/dev/null)
+
+stop-v:
+	@echo "WARNING: This will delete all data volumes!"
+	$(COMPOSE) down -v --remove-orphans
+
+watch: check-docker
+	$(COMPOSE) up --watch
 
 logs:
-	docker compose -f $(COMPOSE_FILE) logs -f
+	$(COMPOSE) logs -f
+
+logs-api:
+	$(COMPOSE) logs -f api
+
+ps:
+	$(COMPOSE) ps
+
+shell-api: check-docker
+	$(COMPOSE) exec api /bin/bash
+
+shell-db: check-docker
+	$(COMPOSE) exec db psql -U postgres -d retail_insights
 
 dev:
 	$(UV) run uvicorn retail_insights.api.app:create_app --factory --reload --host 0.0.0.0 --port $(PORT)
@@ -126,8 +240,8 @@ ifeq ($(OS),Windows_NT)
 	@if exist .coverage $(RM) .coverage
 	@if exist htmlcov $(RMDIR) htmlcov
 else
-	$(RMDIR) .pytest_cache .ruff_cache .mypy_cache htmlcov 2>/dev/null || true
-	$(RM) .coverage 2>/dev/null || true
+	$(RMDIR) .pytest_cache .ruff_cache .mypy_cache htmlcov $(NULL)
+	$(RM) .coverage $(NULL)
 endif
 
 clean: clean-pyc clean-cache

@@ -497,6 +497,17 @@ class SchemaRegistry:
 
         return columns
 
+    def get_table_info(self, force_refresh: bool = False) -> dict[str, TableSchema]:
+        """Get table information (alias to get_schema for backward compatibility).
+
+        Args:
+            force_refresh: If True, refresh even if cache is valid.
+
+        Returns:
+            Dict of table_name -> TableSchema.
+        """
+        return self.get_schema(force_refresh=force_refresh)
+
     def get_valid_tables(self) -> list[str]:
         """Get list of valid table names.
 
