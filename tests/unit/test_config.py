@@ -100,7 +100,15 @@ class TestSettings:
 
     def test_aws_configured(self) -> None:
         """Test aws_configured property."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "test",
+                "AWS_ACCESS_KEY_ID": "",
+                "AWS_SECRET_ACCESS_KEY": "",
+            },
+            clear=False,
+        ):
             settings = Settings()
             assert settings.aws_configured is False
 

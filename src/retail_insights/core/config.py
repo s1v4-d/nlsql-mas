@@ -115,7 +115,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_ADMIN: str = Field(default="10/minute", description="Rate limit for admin endpoints")
 
     # Security
-    AUTH_ENABLED: bool = Field(default=False, description="Enable API key authentication")
+    AUTH_ENABLED: bool = Field(default=True, description="Enable API key authentication")
     SECURITY_HEADERS_ENABLED: bool = Field(default=True, description="Enable security headers")
 
     @field_validator("CORS_ORIGINS", mode="before")
@@ -149,7 +149,11 @@ class Settings(BaseSettings):
     @property
     def aws_configured(self) -> bool:
         """Check if AWS credentials are configured."""
-        return self.AWS_ACCESS_KEY_ID is not None and self.AWS_SECRET_ACCESS_KEY is not None
+        return (
+            bool(self.AWS_ACCESS_KEY_ID)
+            and self.AWS_SECRET_ACCESS_KEY is not None
+            and bool(self.AWS_SECRET_ACCESS_KEY.get_secret_value())
+        )
 
 
 @lru_cache

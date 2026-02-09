@@ -23,6 +23,7 @@ def mock_env():
             "OPENAI_API_KEY": "test-api-key",
             "DEBUG": "true",
             "ENVIRONMENT": "development",
+            "AUTH_ENABLED": "false",
         },
     ):
         from retail_insights.core.config import get_settings

@@ -69,8 +69,7 @@ class SchemaRegistry:
         self._connector = connector
         self._settings = settings
 
-        # Auto-configure sources from settings if not provided
-        if sources:
+        if sources is not None:
             self._sources = sources
         else:
             self._sources = self._configure_sources_from_settings(settings)
@@ -526,10 +525,10 @@ class SchemaRegistry:
 
         try:
             select_clause = ", ".join(
-                [f"DISTINCT CAST({name} AS VARCHAR) as {name}" for name in col_names]
+                [f'CAST("{name}" AS VARCHAR) AS "{name}"' for name in col_names]
             )
             result = conn.execute(
-                f"SELECT {select_clause} FROM {read_func}('{path}') LIMIT 10"  # nosec B608
+                f"SELECT DISTINCT {select_clause} FROM {read_func}('{path}') LIMIT 10"  # nosec B608
             ).fetchdf()
 
             for col in columns:
@@ -595,11 +594,7 @@ class SchemaRegistry:
 
         lines = ["## Available Tables\n"]
 
-        for i, (table_name, schema) in enumerate(schemas.items()):
-            if i >= max_tables:
-                lines.append(f"\n... and {len(schemas) - max_tables} more tables")
-                break
-
+        for table_name, schema in list(schemas.items())[:max_tables]:
             lines.append(f"### {table_name}")
             lines.append(f"Source: {schema.source_type}")
             if schema.row_count:
@@ -614,7 +609,14 @@ class SchemaRegistry:
 
             lines.append("")
 
+        if len(schemas) > max_tables:
+            lines.append(f"\n... and {len(schemas) - max_tables} more tables")
+
         return "\n".join(lines)
+
+    def get_schema_for_prompt(self, max_tables: int = 20) -> str:
+        """Alias for get_schema_context for backward compatibility."""
+        return self.get_schema_context(max_tables=max_tables)
 
 
 # Module-level convenience functions
