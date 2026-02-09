@@ -11,7 +11,7 @@ import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from retail_insights.agents import create_initial_state
@@ -48,6 +48,7 @@ router = APIRouter(prefix="/api/v1", tags=["query"])
 @limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def process_query(
     request: Request,
+    response: Response,
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
@@ -123,10 +124,10 @@ async def process_query(
     execution_time_ms = (time.perf_counter() - start_time) * 1000
 
     # Extract result fields
-    final_answer = result.get("final_answer", "No answer generated")
+    final_answer = result.get("final_answer") or "No answer generated"
     sql_query = result.get("generated_sql")
     query_results = result.get("query_results")
-    row_count = result.get("row_count", 0)
+    row_count = result.get("row_count") or 0
     execution_error = result.get("execution_error")
 
     # Handle execution errors
@@ -180,6 +181,7 @@ async def process_query(
 @limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def process_query_stream(
     request: Request,
+    response: Response,
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
@@ -313,6 +315,7 @@ async def process_query_stream(
 @limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def generate_summary(
     request: Request,
+    response: Response,
     body: SummarizeRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,

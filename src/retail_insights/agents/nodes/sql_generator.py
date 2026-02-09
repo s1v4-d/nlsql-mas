@@ -60,9 +60,9 @@ async def generate_sql(state: RetailInsightsState) -> dict:
 
     # Initialize LLM with structured output
     llm = ChatOpenAI(
-        model=settings.openai_model,
+        model=settings.OPENAI_MODEL,
         temperature=0,  # Deterministic for SQL generation
-        api_key=settings.openai_api_key.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY.get_secret_value(),
     )
     structured_llm = llm.with_structured_output(SQLGenerationResult)
 

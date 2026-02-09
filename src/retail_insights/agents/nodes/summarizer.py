@@ -53,9 +53,9 @@ async def summarize_results(state: RetailInsightsState) -> dict:
 
     # Initialize LLM with slight temperature for natural language
     llm = ChatOpenAI(
-        model=settings.openai_model,
+        model=settings.OPENAI_MODEL,
         temperature=0.3,  # Slight creativity for natural phrasing
-        api_key=settings.openai_api_key.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY.get_secret_value(),
     )
 
     # Format prompts based on result type

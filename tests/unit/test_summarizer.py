@@ -358,8 +358,8 @@ class TestSummarizeResults:
     def mock_settings(self) -> MagicMock:
         """Create mock settings."""
         settings = MagicMock()
-        settings.openai_model = "gpt-4o"
-        settings.openai_api_key.get_secret_value.return_value = "test-key"
+        settings.OPENAI_MODEL = "gpt-4o"
+        settings.OPENAI_API_KEY.get_secret_value.return_value = "test-key"
         return settings
 
     @pytest.mark.asyncio

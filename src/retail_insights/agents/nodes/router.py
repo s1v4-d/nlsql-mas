@@ -52,9 +52,9 @@ async def route_query(state: RetailInsightsState) -> dict:
 
     # Initialize LLM with structured output
     llm = ChatOpenAI(
-        model=settings.openai_model,
+        model=settings.OPENAI_MODEL,
         temperature=0,  # Deterministic for classification
-        api_key=settings.openai_api_key.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY.get_secret_value(),
     )
     structured_llm = llm.with_structured_output(RouterDecision)
 
