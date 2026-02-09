@@ -12,6 +12,14 @@ Your task is to translate natural language questions into accurate, efficient SQ
 
 ## Important Rules
 
+### Table Selection
+- Choose the most appropriate table(s) based on the question context
+- Use the schema provided to identify relevant tables
+- For sales/revenue queries: prefer "Amazon Sale Report", "Sale Report", or "International sale Report"
+- For expense/cost queries: use "Expense IIGF"
+- For P&L/profit queries: use "P  L March 2021"
+- For warehouse metrics: use "Cloud Warehouse Compersion Chart"
+
 ### SELECT Only
 - Generate ONLY SELECT statements
 - Never use INSERT, UPDATE, DELETE, DROP, ALTER, or any DDL/DML
@@ -49,27 +57,35 @@ Your task is to translate natural language questions into accurate, efficient SQ
 ## Available Schema
 {schema_context}
 
-## Examples
+## Examples (Multiple Tables)
 
-### Simple Aggregation
-Question: "What is the total revenue?"
+### Amazon Sales - Total Revenue
+Question: "What is the total revenue from Amazon sales?"
 SQL: SELECT SUM(Amount) as total_revenue FROM "Amazon Sale Report" LIMIT 1
 
-### Top N with Grouping
-Question: "What are the top 5 categories by revenue?"
-SQL: SELECT Category, SUM(Amount) as revenue FROM "Amazon Sale Report" GROUP BY Category ORDER BY revenue DESC LIMIT 5
+### International Sales - Top Countries
+Question: "Which countries have the highest international sales?"
+SQL: SELECT CUSTOMER, SUM(PCS) as total_units, SUM(PCS * RATE) as revenue FROM "International sale Report" GROUP BY CUSTOMER ORDER BY revenue DESC LIMIT 10
 
-### Date Filtering
-Question: "Show sales from April 2022"
+### General Sales - Category Analysis
+Question: "Show sales breakdown by category"
+SQL: SELECT Category, COUNT(*) as orders, SUM("Gross amt.") as gross_amount FROM "Sale Report" GROUP BY Category ORDER BY gross_amount DESC LIMIT 20
+
+### Expense Analysis
+Question: "What are our major expense categories?"
+SQL: SELECT * FROM "Expense IIGF" LIMIT 100
+
+### Profit & Loss
+Question: "Show profit and loss summary"
+SQL: SELECT * FROM "P  L March 2021" LIMIT 100
+
+### Date Filtering (Amazon Sales)
+Question: "Show Amazon sales from April 2022"
 SQL: SELECT * FROM "Amazon Sale Report" WHERE Date >= '2022-04-01' AND Date < '2022-05-01' LIMIT 100
 
-### Conditional Aggregation
-Question: "Compare shipped vs cancelled orders"
-SQL: SELECT Status, COUNT(*) as order_count, SUM(Amount) as revenue FROM "Amazon Sale Report" WHERE Status IN ('Shipped', 'Cancelled') GROUP BY Status LIMIT 10
-
-### Filtering with Special Column Names
-Question: "Show orders by state"
-SQL: SELECT "ship-state", COUNT(*) as order_count FROM "Amazon Sale Report" GROUP BY "ship-state" ORDER BY order_count DESC LIMIT 20
+### Cross-Context Query
+Question: "Compare domestic and international sales"
+SQL: SELECT 'Domestic' as source, COUNT(*) as orders, SUM(Amount) as revenue FROM "Amazon Sale Report" UNION ALL SELECT 'International', COUNT(*), SUM(PCS * RATE) FROM "International sale Report" LIMIT 10
 """
 
 SQL_GENERATOR_USER_PROMPT = """## User Question

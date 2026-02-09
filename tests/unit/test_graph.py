@@ -103,12 +103,12 @@ class TestRouteByIntent:
     """Tests for route_by_intent routing function."""
 
     def test_route_query_intent(self) -> None:
-        """Test routing for query intent."""
+        """Test routing for query intent goes to schema_discovery first."""
         state = create_initial_state("What are sales?", "thread-1")
         state["intent"] = "query"
 
         result = route_by_intent(state)
-        assert result == "sql_generator"
+        assert result == "schema_discovery"
 
     def test_route_summarize_intent(self) -> None:
         """Test routing for summarize intent."""
@@ -135,12 +135,12 @@ class TestRouteByIntent:
         assert result == "__end__"
 
     def test_route_default_to_query(self) -> None:
-        """Test that missing intent defaults to query routing."""
+        """Test that missing intent defaults to query (schema_discovery) routing."""
         state = create_initial_state("Test", "thread-1")
         # intent is None by default
 
         result = route_by_intent(state)
-        assert result == "sql_generator"
+        assert result == "schema_discovery"
 
 
 class TestCheckValidation:

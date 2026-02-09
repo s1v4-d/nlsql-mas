@@ -12,6 +12,7 @@ from langgraph.graph import END, StateGraph
 
 from retail_insights.agents.nodes.executor import execute_query
 from retail_insights.agents.nodes.router import route_query
+from retail_insights.agents.nodes.schema_discovery import discover_schema
 from retail_insights.agents.nodes.sql_generator import generate_sql
 from retail_insights.agents.nodes.summarizer import summarize_results
 from retail_insights.agents.nodes.validator import validate_sql
@@ -42,13 +43,13 @@ def route_by_intent(state: RetailInsightsState) -> str:
     intent = state.get("intent", "query")
 
     routing_map = {
-        "query": "sql_generator",
+        "query": "schema_discovery",
         "summarize": "executor",
         "chat": "summarizer",
         "clarify": END,
     }
 
-    return routing_map.get(intent, "sql_generator")
+    return routing_map.get(intent, "schema_discovery")
 
 
 def check_validation(state: RetailInsightsState) -> str:
@@ -88,6 +89,17 @@ async def placeholder_router_node(state: RetailInsightsState) -> dict:
     return {
         "intent": "query",
         "intent_confidence": 1.0,
+    }
+
+
+async def placeholder_schema_discovery_node(state: RetailInsightsState) -> dict:
+    """Placeholder for Schema Discovery agent - passes through schema context.
+
+    Used for testing when LLM is not available.
+    """
+    return {
+        "refined_schema_context": state.get("schema_context", ""),
+        "discovered_tables": state.get("available_tables", []),
     }
 
 
@@ -168,10 +180,11 @@ def build_graph(
 
     Creates a StateGraph with the following flow:
     1. Router: Classify intent (query/summarize/chat/clarify)
-    2. SQL Generator: Generate SQL from natural language (if query intent)
-    3. Validator: Check SQL syntax and safety
-    4. Executor: Run SQL against DuckDB
-    5. Summarizer: Generate human-readable response
+    2. Schema Discovery: Discover relevant tables using LLM tools (if query intent)
+    3. SQL Generator: Generate SQL from natural language
+    4. Validator: Check SQL syntax and safety
+    5. Executor: Run SQL against DuckDB
+    6. Summarizer: Generate human-readable response
 
     Retry logic: Validator can route back to SQL Generator up to MAX_RETRIES times.
 
@@ -201,11 +214,13 @@ def build_graph(
 
     # Select node implementations (real or placeholder)
     if use_placeholder_nodes:
+        schema_disc_node = placeholder_schema_discovery_node
         sql_gen_node = sql_generator_node
         valid_node = validator_node
         exec_node = executor_node
         summ_node = summarizer_node
     else:
+        schema_disc_node = discover_schema
         sql_gen_node = generate_sql
         valid_node = validate_sql
         exec_node = execute_query
@@ -213,6 +228,7 @@ def build_graph(
 
     # Add nodes
     workflow.add_node("router", router_node)
+    workflow.add_node("schema_discovery", schema_disc_node)
     workflow.add_node("sql_generator", sql_gen_node)
     workflow.add_node("validator", valid_node)
     workflow.add_node("executor", exec_node)
@@ -226,12 +242,15 @@ def build_graph(
         "router",
         route_by_intent,
         {
-            "sql_generator": "sql_generator",
+            "schema_discovery": "schema_discovery",
             "executor": "executor",
             "summarizer": "summarizer",
             END: END,
         },
     )
+
+    # Schema Discovery → SQL Generator
+    workflow.add_edge("schema_discovery", "sql_generator")
 
     # SQL Generator → Validator
     workflow.add_edge("sql_generator", "validator")

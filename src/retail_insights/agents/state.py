@@ -86,6 +86,10 @@ class RetailInsightsState(MessagesState):
     available_tables: list[str]
     schema_context: str
 
+    # Tool-based schema discovery
+    refined_schema_context: str | None
+    discovered_tables: list[str]
+
 
 def create_initial_state(
     user_query: str,
@@ -144,4 +148,7 @@ def create_initial_state(
         # Schema context
         available_tables=available_tables or [],
         schema_context=schema_context,
+        # Tool-based schema discovery
+        refined_schema_context=None,
+        discovered_tables=[],
     )

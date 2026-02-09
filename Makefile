@@ -253,9 +253,4 @@ ci-lint:
 ci-test:
 	$(UV) run pytest $(TESTS_DIR) -v --junitxml=junit.xml --cov=$(SRC_DIR) --cov-report=xml
 
-qa: format lint typecheck test
-
 pre-commit: format lint typecheck test
-	@echo ""
-	@echo "=== All pre-commit checks passed ==="
-	@echo "Ready to commit!"

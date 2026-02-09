@@ -69,10 +69,13 @@ async def generate_sql(state: RetailInsightsState) -> dict:
     # Get current date for temporal context
     current_date = datetime.now().strftime("%Y-%m-%d")
 
+    # Use refined schema context from discovery if available, otherwise fallback to original
+    schema_context = state.get("refined_schema_context") or state.get("schema_context", "")
+
     # Format prompts with schema and retry context
     system_prompt, user_prompt = format_sql_generator_prompt(
         user_query=state["user_query"],
-        schema_context=state.get("schema_context", ""),
+        schema_context=schema_context,
         validation_errors=state.get("validation_errors") if is_retry else None,
         previous_sql=state.get("generated_sql") if is_retry else None,
         current_date=current_date,
