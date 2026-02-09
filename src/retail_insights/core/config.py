@@ -1,8 +1,4 @@
-"""Application configuration using Pydantic Settings.
-
-This module provides centralized configuration management with
-environment variable loading and validation.
-"""
+"""Application configuration using Pydantic Settings with multi-file support."""
 
 from functools import lru_cache
 from typing import Literal
@@ -14,12 +10,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables.
 
-    All settings can be overridden via environment variables.
-    Secrets are handled securely using SecretStr.
+    Pydantic-settings natively loads from multiple .env files in priority order.
+    Later files override earlier ones. Secrets use SecretStr for security.
+
+    Priority (lowest to highest):
+    1. .env (base defaults)
+    2. env-files/dev.env (development overrides)
+    3. env-files/secrets/secrets.env (secrets, never committed)
+    4. OS environment variables (highest priority)
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "env-files/dev.env", "env-files/secrets/secrets.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -33,7 +35,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "development"
 
     # API Configuration
-    API_HOST: str = "0.0.0.0"
+    API_HOST: str = "0.0.0.0"  # nosec B104 - intentional for container deployments
     API_PORT: int = 8000
     API_WORKERS: int = 1
     CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"])
@@ -106,6 +108,16 @@ class Settings(BaseSettings):
     OTEL_EXPORTER_TYPE: Literal["otlp", "xray", "console", "none"] = "none"
     OTEL_EXPORTER_ENDPOINT: str = Field(default="http://localhost:4317")
 
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = Field(default=True, description="Enable rate limiting")
+    RATE_LIMIT_DEFAULT: str = Field(default="60/minute", description="Default rate limit")
+    RATE_LIMIT_QUERY: str = Field(default="30/minute", description="Rate limit for query endpoints")
+    RATE_LIMIT_ADMIN: str = Field(default="10/minute", description="Rate limit for admin endpoints")
+
+    # Security
+    AUTH_ENABLED: bool = Field(default=True, description="Enable API key authentication")
+    SECURITY_HEADERS_ENABLED: bool = Field(default=True, description="Enable security headers")
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
@@ -137,22 +149,14 @@ class Settings(BaseSettings):
     @property
     def aws_configured(self) -> bool:
         """Check if AWS credentials are configured."""
-        return self.AWS_ACCESS_KEY_ID is not None and self.AWS_SECRET_ACCESS_KEY is not None
+        return (
+            bool(self.AWS_ACCESS_KEY_ID)
+            and self.AWS_SECRET_ACCESS_KEY is not None
+            and bool(self.AWS_SECRET_ACCESS_KEY.get_secret_value())
+        )
 
 
 @lru_cache
 def get_settings() -> Settings:
-    """Get cached settings instance.
-
-    Returns:
-        Settings: Application settings loaded from environment.
-
-    Example:
-        ```python
-        from retail_insights.core.config import get_settings
-
-        settings = get_settings()
-        print(settings.APP_NAME)
-        ```
-    """
+    """Get cached settings instance."""
     return Settings()

@@ -1,0 +1,59 @@
+# Pre-commit hooks configuration for Retail Insights Assistant
+# See https://pre-commit.com for more information
+# Run `pre-commit install` to set up the git hook scripts
+# Run `pre-commit run --all-files` to run all hooks on all files
+
+default_language_version:
+  python: python3.12
+
+repos:
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^\.github/.*\.md$
+      - id: end-of-file-fixer
+        exclude: ^\.github/.*\.md$
+      - id: check-yaml
+        args: [--unsafe]  # Allow custom YAML tags
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
+
+  # Ruff - Fast Python linter and formatter (replaces Black, isort, flake8)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.6
+    hooks:
+      - id: ruff
+        name: ruff lint
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        name: ruff format
+        types_or: [python, pyi]
+
+  # Bandit - Security linting
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        name: bandit security scan
+        args: [-c, pyproject.toml, -r, src/]
+        additional_dependencies: ["bandit[toml]"]
+        pass_filenames: false
+
+  # Check pyproject.toml validity
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.23
+    hooks:
+      - id: validate-pyproject
+        name: validate pyproject.toml
+
+ci:
+  autofix_prs: false
+  autoupdate_schedule: monthly

@@ -103,12 +103,12 @@ class TestRouteByIntent:
     """Tests for route_by_intent routing function."""
 
     def test_route_query_intent(self) -> None:
-        """Test routing for query intent."""
+        """Test routing for query intent goes to schema_discovery first."""
         state = create_initial_state("What are sales?", "thread-1")
         state["intent"] = "query"
 
         result = route_by_intent(state)
-        assert result == "sql_generator"
+        assert result == "schema_discovery"
 
     def test_route_summarize_intent(self) -> None:
         """Test routing for summarize intent."""
@@ -135,12 +135,12 @@ class TestRouteByIntent:
         assert result == "__end__"
 
     def test_route_default_to_query(self) -> None:
-        """Test that missing intent defaults to query routing."""
+        """Test that missing intent defaults to query (schema_discovery) routing."""
         state = create_initial_state("Test", "thread-1")
         # intent is None by default
 
         result = route_by_intent(state)
-        assert result == "sql_generator"
+        assert result == "schema_discovery"
 
 
 class TestCheckValidation:
@@ -199,18 +199,18 @@ class TestBuildGraph:
 
     def test_build_graph_without_checkpointer(self) -> None:
         """Test building graph without a checkpointer."""
-        graph = build_graph(use_placeholder_router=True)
+        graph = build_graph(use_placeholder_nodes=True)
         assert graph is not None
 
     def test_build_graph_with_memory_checkpointer(self) -> None:
         """Test building graph with memory checkpointer."""
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
         assert graph is not None
 
     def test_graph_has_expected_nodes(self) -> None:
         """Test that the graph contains all expected nodes."""
-        graph = build_graph(use_placeholder_router=True)
+        graph = build_graph(use_placeholder_nodes=True)
 
         # Get the underlying graph to inspect nodes
         # Note: The compiled graph structure may vary by LangGraph version
@@ -220,7 +220,7 @@ class TestBuildGraph:
     async def test_graph_query_flow_basic(self) -> None:
         """Test basic query flow through the graph."""
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
 
         initial_state = create_initial_state(
             user_query="What are the top products?",
@@ -242,7 +242,7 @@ class TestBuildGraph:
     async def test_graph_chat_flow(self) -> None:
         """Test chat intent flow (skips SQL generation)."""
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
 
         initial_state = create_initial_state(
             user_query="Hello, how are you?",
@@ -263,7 +263,7 @@ class TestBuildGraph:
     async def test_graph_preserves_thread_context(self) -> None:
         """Test that thread context is preserved across invocations."""
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
 
         thread_id = "test-context-1"
         config = {"configurable": {"thread_id": thread_id}}

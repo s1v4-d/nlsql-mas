@@ -10,57 +10,18 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
-from retail_insights.core.config import get_settings
+from retail_insights.api.auth import require_admin
 from retail_insights.engine.schema_registry import SchemaRegistry, get_schema_registry
 from retail_insights.models.schema import DataSource, SchemaRegistryState
 
 logger = logging.getLogger(__name__)
 
-# API Key authentication
-api_key_header = APIKeyHeader(name="X-Admin-API-Key", auto_error=False)
-
-
-async def verify_admin_api_key(
-    api_key: Annotated[str | None, Depends(api_key_header)],
-) -> str:
-    """Verify the admin API key.
-
-    Args:
-        api_key: API key from request header.
-
-    Returns:
-        Validated API key.
-
-    Raises:
-        HTTPException: If API key is missing or invalid.
-    """
-    if api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing X-Admin-API-Key header",
-        )
-
-    settings = get_settings()
-    expected_key = settings.ADMIN_API_KEY
-
-    if api_key != expected_key:
-        logger.warning("Invalid admin API key attempt")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid admin API key",
-        )
-
-    return api_key
-
-
-# Router with admin prefix and authentication
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    dependencies=[Depends(verify_admin_api_key)],
+    dependencies=[Depends(require_admin)],
 )
 
 

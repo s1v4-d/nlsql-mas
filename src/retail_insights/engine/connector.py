@@ -56,7 +56,7 @@ class DuckDBConnector:
             read_only: Whether to enforce read-only mode.
         """
         if settings:
-            self.data_path = Path(data_path or settings.DUCKDB_DATA_PATH)
+            self.data_path = Path(data_path or settings.LOCAL_DATA_PATH)
             self.memory_limit = memory_limit or settings.DUCKDB_MEMORY_LIMIT
             self.threads = threads or settings.DUCKDB_THREADS
             self._s3_bucket = settings.AWS_S3_BUCKET
@@ -128,9 +128,8 @@ class DuckDBConnector:
         conn.execute(f"SET memory_limit = '{self.memory_limit}';")
         conn.execute(f"SET threads = {self.threads};")
 
-        # Set access mode (enforced at query level for :memory:)
-        if self.read_only:
-            conn.execute("SET access_mode = 'READ_ONLY';")
+        # Note: access_mode cannot be changed after connection is opened
+        # For in-memory databases, we enforce read-only at the query validation level
 
         # Configure S3 httpfs if credentials provided
         if self._aws_access_key and self._aws_secret_key:
@@ -160,14 +159,19 @@ class DuckDBConnector:
             logger.warning(f"Failed to configure S3 httpfs: {e}")
 
     def get_connection(self) -> duckdb.DuckDBPyConnection:
-        """Get a thread-local DuckDB connection.
+        """Get the shared DuckDB connection.
+
+        Uses a single shared connection for in-memory databases so that
+        registered views are accessible across all operations.
 
         Returns:
-            Thread-local DuckDB connection.
+            Shared DuckDB connection.
         """
-        if not hasattr(self._local, "connection") or self._local.connection is None:
-            self._local.connection = self._create_connection()
-        return self._local.connection
+        if self._connection is None:
+            with self._lock:
+                if self._connection is None:
+                    self._connection = self._create_connection()
+        return self._connection
 
     @contextmanager
     def connection(self) -> Generator[duckdb.DuckDBPyConnection]:
@@ -255,14 +259,8 @@ class DuckDBConnector:
         path_str = str(path)
 
         # Support glob patterns for partitioned data
-        if "*" in path_str:
-            conn.execute(
-                f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"
-            )
-        else:
-            conn.execute(
-                f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"
-            )
+        sql = f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{path_str}')"  # nosec B608
+        conn.execute(sql)
 
         logger.info(f"Registered Parquet table: {table_name} from {path_str}")
 
@@ -327,10 +325,10 @@ class DuckDBConnector:
         return columns
 
     def close(self) -> None:
-        """Close all connections."""
-        if hasattr(self._local, "connection") and self._local.connection:
-            self._local.connection.close()
-            self._local.connection = None
+        """Close the main connection."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
         logger.debug("DuckDB connector closed")
 
     def __enter__(self) -> DuckDBConnector:

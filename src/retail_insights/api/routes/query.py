@@ -11,16 +11,19 @@ import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 
 from retail_insights.agents import create_initial_state
+from retail_insights.api.auth import ApiKeyDep
 from retail_insights.api.dependencies import (
     GraphDep,
     SchemaRegistryDep,
     get_thread_id,
     request_id_ctx,
 )
+from retail_insights.api.rate_limit import limiter
+from retail_insights.core.config import get_settings
 from retail_insights.core.exceptions import ExecutionError, SQLGenerationError
 from retail_insights.models.requests import QueryRequest, SummarizeRequest
 from retail_insights.models.responses import ErrorResponse, QueryResult, SummaryResult
@@ -38,13 +41,18 @@ router = APIRouter(prefix="/api/v1", tags=["query"])
     response_model=QueryResult,
     responses={
         422: {"model": ErrorResponse, "description": "Validation error or SQL generation failed"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Query execution error"},
     },
 )
+@limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def process_query(
+    request: Request,
+    response: Response,
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> QueryResult:
     """Process a natural language query using the multi-agent workflow.
@@ -116,10 +124,10 @@ async def process_query(
     execution_time_ms = (time.perf_counter() - start_time) * 1000
 
     # Extract result fields
-    final_answer = result.get("final_answer", "No answer generated")
+    final_answer = result.get("final_answer") or "No answer generated"
     sql_query = result.get("generated_sql")
     query_results = result.get("query_results")
-    row_count = result.get("row_count", 0)
+    row_count = result.get("row_count") or 0
     execution_error = result.get("execution_error")
 
     # Handle execution errors
@@ -166,13 +174,18 @@ async def process_query(
     responses={
         200: {"description": "Server-sent events stream"},
         422: {"model": ErrorResponse, "description": "Validation error"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Execution error"},
     },
 )
+@limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def process_query_stream(
+    request: Request,
+    response: Response,
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> StreamingResponse:
     """Process a query and stream agent updates via Server-Sent Events.
@@ -295,13 +308,18 @@ async def process_query_stream(
     response_model=SummaryResult,
     responses={
         422: {"model": ErrorResponse, "description": "Validation error"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
         500: {"model": ErrorResponse, "description": "Summary generation error"},
     },
 )
+@limiter.limit(lambda: get_settings().RATE_LIMIT_QUERY)
 async def generate_summary(
+    request: Request,
+    response: Response,
     body: SummarizeRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> SummaryResult:
     """Generate an automated sales summary for a time period.

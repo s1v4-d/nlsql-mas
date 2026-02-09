@@ -168,7 +168,7 @@ async def validate_sql(state: RetailInsightsState) -> dict:
 
     result = {
         "sql_is_valid": is_valid,
-        "validation_errors": errors if errors else None,
+        "validation_errors": errors,  # Always return list, never None
         "validation_status": status,
     }
 

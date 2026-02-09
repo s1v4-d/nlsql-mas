@@ -11,7 +11,17 @@ class TestSettings:
 
     def test_default_values(self) -> None:
         """Test default configuration values."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test-key"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "test-key",
+                "DEBUG": "false",
+                "LOG_LEVEL": "INFO",
+                "ENVIRONMENT": "development",
+            },
+            clear=False,
+        ):
+            get_settings.cache_clear()
             settings = Settings()
             assert settings.APP_NAME == "Retail Insights Assistant"
             assert settings.DEBUG is False
@@ -55,22 +65,24 @@ class TestSettings:
             settings = Settings()
             assert settings.is_production is False
 
-    def test_database_configured(self) -> None:
+    def test_database_configured(self, monkeypatch, tmp_path) -> None:
         """Test database_configured property."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test"}, clear=False):
-            settings = Settings()
-            assert settings.database_configured is False
+        # Create a temporary empty env file to avoid loading real env files
+        empty_env = tmp_path / ".env"
+        empty_env.write_text("")
 
-        with patch.dict(
-            os.environ,
-            {
-                "OPENAI_API_KEY": "test",
-                "DATABASE_URL": "postgresql://localhost/test",
-            },
-            clear=False,
-        ):
-            settings = Settings()
-            assert settings.database_configured is True
+        # Temporarily change working directory to tmp_path to avoid loading dev.env
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("OPENAI_API_KEY", "test")
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        get_settings.cache_clear()
+        settings = Settings(_env_file=str(empty_env))
+        assert settings.database_configured is False
+
+        monkeypatch.setenv("DATABASE_URL", "postgresql://localhost/test")
+        get_settings.cache_clear()
+        settings = Settings(_env_file=str(empty_env))
+        assert settings.database_configured is True
 
     def test_cors_origins_parsing(self) -> None:
         """Test CORS origins parsing from JSON array string."""
@@ -88,7 +100,15 @@ class TestSettings:
 
     def test_aws_configured(self) -> None:
         """Test aws_configured property."""
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "test"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "test",
+                "AWS_ACCESS_KEY_ID": "",
+                "AWS_SECRET_ACCESS_KEY": "",
+            },
+            clear=False,
+        ):
             settings = Settings()
             assert settings.aws_configured is False
 

@@ -222,7 +222,7 @@ class TestSchemaRegistry:
         """Test adding a data source."""
         from retail_insights.engine.schema_registry import SchemaRegistry
 
-        registry = SchemaRegistry()
+        registry = SchemaRegistry(sources=[])
         source = DataSource(type="local", path="/data/test")
         registry.add_source(source)
         assert len(registry._sources) == 1
@@ -232,7 +232,7 @@ class TestSchemaRegistry:
         """Test registry is stale when first created."""
         from retail_insights.engine.schema_registry import SchemaRegistry
 
-        registry = SchemaRegistry()
+        registry = SchemaRegistry(sources=[])
         assert registry.is_stale is True
 
     def test_is_stale_after_refresh(self) -> None:
@@ -259,7 +259,7 @@ class TestSchemaRegistry:
         """Test getting state from empty registry."""
         from retail_insights.engine.schema_registry import SchemaRegistry
 
-        registry = SchemaRegistry()
+        registry = SchemaRegistry(sources=[])
         state = registry.get_state()
         assert len(state.tables) == 0
         assert state.last_refresh is None

@@ -129,8 +129,8 @@ class TestRouteQuery:
     def mock_settings(self) -> MagicMock:
         """Create mock settings."""
         settings = MagicMock()
-        settings.openai_model = "gpt-4o"
-        settings.openai_api_key.get_secret_value.return_value = "test-key"
+        settings.OPENAI_MODEL = "gpt-4o"
+        settings.OPENAI_API_KEY.get_secret_value.return_value = "test-key"
         return settings
 
     @pytest.fixture
@@ -298,7 +298,7 @@ class TestRouterIntegration:
 
         # Build graph with placeholder router (no LLM calls)
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
 
         state = create_initial_state(
             "What are the top products?",

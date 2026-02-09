@@ -54,6 +54,9 @@ class TableSchema(BaseModel):
         row_count: Approximate row count if available.
         last_modified: Last modification timestamp if available.
         file_format: File format for file-based sources.
+        date_range_start: Earliest date in date columns (for LLM context).
+        date_range_end: Latest date in date columns (for LLM context).
+        date_column: Name of the primary date column if detected.
     """
 
     name: str = Field(..., description="Table name")
@@ -70,6 +73,9 @@ class TableSchema(BaseModel):
     row_count: int | None = Field(default=None, ge=0, description="Approximate row count")
     last_modified: datetime | None = Field(default=None, description="Last modification timestamp")
     file_format: str | None = Field(default=None, description="File format (parquet, csv, etc.)")
+    date_range_start: str | None = Field(default=None, description="Earliest date in date columns")
+    date_range_end: str | None = Field(default=None, description="Latest date in date columns")
+    date_column: str | None = Field(default=None, description="Primary date column name")
 
     model_config = {
         "json_schema_extra": {

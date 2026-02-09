@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
 
+from retail_insights.agents.nodes.executor import execute_query
 from retail_insights.agents.nodes.router import route_query
+from retail_insights.agents.nodes.schema_discovery import discover_schema
+from retail_insights.agents.nodes.sql_generator import generate_sql
+from retail_insights.agents.nodes.summarizer import summarize_results
+from retail_insights.agents.nodes.validator import validate_sql
 from retail_insights.agents.state import RetailInsightsState
 
 if TYPE_CHECKING:
@@ -38,13 +43,13 @@ def route_by_intent(state: RetailInsightsState) -> str:
     intent = state.get("intent", "query")
 
     routing_map = {
-        "query": "sql_generator",
+        "query": "schema_discovery",
         "summarize": "executor",
         "chat": "summarizer",
         "clarify": END,
     }
 
-    return routing_map.get(intent, "sql_generator")
+    return routing_map.get(intent, "schema_discovery")
 
 
 def check_validation(state: RetailInsightsState) -> str:
@@ -87,14 +92,26 @@ async def placeholder_router_node(state: RetailInsightsState) -> dict:
     }
 
 
+async def placeholder_schema_discovery_node(state: RetailInsightsState) -> dict:
+    """Placeholder for Schema Discovery agent - passes through schema context.
+
+    Used for testing when LLM is not available.
+    """
+    return {
+        "refined_schema_context": state.get("schema_context", ""),
+        "discovered_tables": state.get("available_tables", []),
+    }
+
+
 async def sql_generator_node(state: RetailInsightsState) -> dict:
     """Placeholder for SQL Generator agent - generates SQL from NL query.
 
     TODO: Implement in TICKET-010 with LLM-based SQL generation.
     """
+    placeholder_sql = "SELECT * FROM sales LIMIT 10"  # nosec B608 - static placeholder query
     return {
-        "generated_sql": f"SELECT * FROM sales LIMIT 10 -- placeholder for: {state['user_query']}",
-        "sql_explanation": "Placeholder SQL query",
+        "generated_sql": placeholder_sql,
+        "sql_explanation": f"Placeholder SQL query for: {state['user_query']}",
         "tables_used": ["sales"],
         "retry_count": state.get("retry_count", 0) + 1,
     }
@@ -157,15 +174,17 @@ def build_graph(
     checkpointer: BaseCheckpointSaver | None = None,
     *,
     use_placeholder_router: bool = False,
+    use_placeholder_nodes: bool = False,
 ) -> CompiledStateGraph:
     """Build the multi-agent workflow graph.
 
     Creates a StateGraph with the following flow:
     1. Router: Classify intent (query/summarize/chat/clarify)
-    2. SQL Generator: Generate SQL from natural language (if query intent)
-    3. Validator: Check SQL syntax and safety
-    4. Executor: Run SQL against DuckDB
-    5. Summarizer: Generate human-readable response
+    2. Schema Discovery: Discover relevant tables using LLM tools (if query intent)
+    3. SQL Generator: Generate SQL from natural language
+    4. Validator: Check SQL syntax and safety
+    5. Executor: Run SQL against DuckDB
+    6. Summarizer: Generate human-readable response
 
     Retry logic: Validator can route back to SQL Generator up to MAX_RETRIES times.
 
@@ -173,6 +192,8 @@ def build_graph(
         checkpointer: Optional checkpoint saver for persistence (PostgresSaver/MemorySaver).
         use_placeholder_router: If True, use placeholder router for testing (no LLM calls).
             Defaults to False (uses real LLM-based router).
+        use_placeholder_nodes: If True, use placeholder implementations for all nodes.
+            Defaults to False (uses real implementations).
 
     Returns:
         Compiled StateGraph ready for invocation.
@@ -188,14 +209,30 @@ def build_graph(
     workflow = StateGraph(RetailInsightsState)
 
     # Select router node (real or placeholder)
-    router_node = placeholder_router_node if use_placeholder_router else route_query
+    use_placeholders = use_placeholder_nodes or use_placeholder_router
+    router_node = placeholder_router_node if use_placeholders else route_query
+
+    # Select node implementations (real or placeholder)
+    if use_placeholder_nodes:
+        schema_disc_node = placeholder_schema_discovery_node
+        sql_gen_node = sql_generator_node
+        valid_node = validator_node
+        exec_node = executor_node
+        summ_node = summarizer_node
+    else:
+        schema_disc_node = discover_schema
+        sql_gen_node = generate_sql
+        valid_node = validate_sql
+        exec_node = execute_query
+        summ_node = summarize_results
 
     # Add nodes
     workflow.add_node("router", router_node)
-    workflow.add_node("sql_generator", sql_generator_node)
-    workflow.add_node("validator", validator_node)
-    workflow.add_node("executor", executor_node)
-    workflow.add_node("summarizer", summarizer_node)
+    workflow.add_node("schema_discovery", schema_disc_node)
+    workflow.add_node("sql_generator", sql_gen_node)
+    workflow.add_node("validator", valid_node)
+    workflow.add_node("executor", exec_node)
+    workflow.add_node("summarizer", summ_node)
 
     # Set entry point
     workflow.set_entry_point("router")
@@ -205,12 +242,15 @@ def build_graph(
         "router",
         route_by_intent,
         {
-            "sql_generator": "sql_generator",
+            "schema_discovery": "schema_discovery",
             "executor": "executor",
             "summarizer": "summarizer",
             END: END,
         },
     )
+
+    # Schema Discovery → SQL Generator
+    workflow.add_edge("schema_discovery", "sql_generator")
 
     # SQL Generator → Validator
     workflow.add_edge("sql_generator", "validator")

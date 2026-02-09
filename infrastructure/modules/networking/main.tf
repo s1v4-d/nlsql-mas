@@ -1,5 +1,5 @@
 # Networking Module - Main Configuration
-# ---------------------------------------
+
 # VPC, Subnets, NAT Gateway, Security Groups, VPC Endpoints
 
 # Data Sources
@@ -39,9 +39,9 @@ locals {
   )
 }
 
-# =============================================================================
+
 # VPC
-# =============================================================================
+
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
@@ -53,9 +53,9 @@ resource "aws_vpc" "main" {
   })
 }
 
-# =============================================================================
+
 # Internet Gateway
-# =============================================================================
+
 
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
@@ -65,9 +65,9 @@ resource "aws_internet_gateway" "main" {
   })
 }
 
-# =============================================================================
+
 # Subnets
-# =============================================================================
+
 
 # Public Subnets (for ALB, NAT Gateway)
 resource "aws_subnet" "public" {
@@ -123,9 +123,9 @@ resource "aws_db_subnet_group" "database" {
   })
 }
 
-# =============================================================================
+
 # NAT Gateway
-# =============================================================================
+
 
 # Elastic IPs for NAT Gateway
 resource "aws_eip" "nat" {
@@ -154,9 +154,9 @@ resource "aws_nat_gateway" "main" {
   depends_on = [aws_internet_gateway.main]
 }
 
-# =============================================================================
+
 # Route Tables
-# =============================================================================
+
 
 # Public Route Table
 resource "aws_route_table" "public" {
@@ -222,9 +222,9 @@ resource "aws_route_table_association" "database" {
   route_table_id = aws_route_table.database.id
 }
 
-# =============================================================================
+
 # Security Groups
-# =============================================================================
+
 
 # ALB Security Group
 resource "aws_security_group" "alb" {
@@ -391,9 +391,9 @@ resource "aws_vpc_security_group_ingress_rule" "endpoints_from_vpc" {
   cidr_ipv4         = var.vpc_cidr
 }
 
-# =============================================================================
+
 # VPC Endpoints
-# =============================================================================
+
 
 # S3 Gateway Endpoint (FREE)
 resource "aws_vpc_endpoint" "s3" {
@@ -515,9 +515,9 @@ resource "aws_vpc_endpoint" "ssmmessages" {
   })
 }
 
-# =============================================================================
+
 # VPC Flow Logs
-# =============================================================================
+
 
 resource "aws_cloudwatch_log_group" "flow_logs" {
   count = var.enable_vpc_flow_logs ? 1 : 0

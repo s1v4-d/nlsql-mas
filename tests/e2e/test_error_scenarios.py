@@ -269,10 +269,16 @@ class TestExecutionErrors:
         test_app.include_router(admin_router)
         test_app.include_router(query_router)
 
+        from retail_insights.api.rate_limit import get_limiter, reset_limiter
+
+        reset_limiter()
+        limiter = get_limiter(settings)
+
         test_app.state.settings = settings
         test_app.state.graph = graph
         test_app.state.schema_registry = mock_registry
         test_app.state.checkpointer = MemorySaver()
+        test_app.state.limiter = limiter
 
         return test_app
 
@@ -517,24 +523,23 @@ class TestAbusePrevention:
     """E2E tests for abuse prevention measures."""
 
     def test_sql_injection_attempt_blocked(self, e2e_client: TestClient) -> None:
-        """Test that SQL injection attempts are handled safely."""
+        """Test that SQL injection attempts are blocked by input validation."""
         response = e2e_client.post(
             "/api/v1/query",
             json={"question": "'; DROP TABLE amazon_sales; --"},
         )
 
-        assert response.status_code == 200
+        # Injection attempts should be rejected at validation layer
+        assert response.status_code == 422
         data = response.json()
-        # Should not execute dangerous SQL
-        # Either treated as chat or returns safe response
-        assert data["success"] is True
+        assert "detail" in data
 
     def test_xss_attempt_in_question(self, e2e_client: TestClient) -> None:
-        """Test that XSS attempts in questions are sanitized."""
+        """Test that XSS attempts in questions are blocked."""
         response = e2e_client.post(
             "/api/v1/query",
             json={"question": "<script>alert('xss')</script>What are sales?"},
         )
 
-        # Should handle safely
-        assert response.status_code in [200, 422]
+        # XSS attempts should be rejected at validation layer
+        assert response.status_code == 422

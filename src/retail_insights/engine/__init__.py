@@ -5,9 +5,16 @@ This package provides DuckDB-based data access with:
 - S3 httpfs configuration
 - Query execution with safety validation
 - Table name rewriting and schema discovery
+- Automatic table description generation using LLM
 """
 
 from retail_insights.engine.connector import DuckDBConnector
+from retail_insights.engine.description_generator import (
+    TableDescriptionGenerator,
+    TableDescriptionResult,
+    generate_table_description,
+    get_description_generator,
+)
 from retail_insights.engine.query_runner import QueryRunner, get_query_runner
 from retail_insights.engine.schema_registry import (
     SchemaRegistry,
@@ -28,4 +35,9 @@ __all__ = [
     "get_valid_tables",
     "get_valid_columns",
     "get_schema_context",
+    # Description generation
+    "TableDescriptionGenerator",
+    "TableDescriptionResult",
+    "get_description_generator",
+    "generate_table_description",
 ]

@@ -5,6 +5,7 @@ from retail_insights.agents.nodes.executor import (
     execute_query,
 )
 from retail_insights.agents.nodes.router import create_mock_router, route_query
+from retail_insights.agents.nodes.schema_discovery import discover_schema
 from retail_insights.agents.nodes.sql_generator import (
     create_mock_sql_generator,
     generate_sql,
@@ -21,6 +22,7 @@ from retail_insights.agents.nodes.validator import (
 __all__ = [
     "route_query",
     "create_mock_router",
+    "discover_schema",
     "generate_sql",
     "create_mock_sql_generator",
     "validate_sql",

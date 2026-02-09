@@ -631,14 +631,12 @@ resource "aws_ecs_service" "services" {
     }
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
 
-    deployment_circuit_breaker {
-      enable   = true
-      rollback = var.environment == "prod"
-    }
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = var.environment == "prod"
   }
 
   wait_for_steady_state = var.environment == "prod"

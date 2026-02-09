@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from retail_insights.agents.graph import build_graph, get_memory_checkpointer
 from retail_insights.api.dependencies import request_id_ctx
 from retail_insights.api.routes.admin import router as admin_router
 from retail_insights.api.routes.query import router as query_router
@@ -20,6 +21,8 @@ from retail_insights.core.exceptions import (
     ValidationError,
 )
 from retail_insights.core.logging import configure_logging, get_logger
+from retail_insights.core.telemetry import configure_telemetry
+from retail_insights.engine.schema_registry import get_schema_registry
 
 configure_logging()
 logger = get_logger(__name__)
@@ -27,29 +30,16 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan events.
-
-    Initializes:
-    - Settings configuration
-    - Schema registry for database metadata
-    - LangGraph workflow with checkpointer
-    - OpenTelemetry instrumentation
-    """
+    """Application lifespan events."""
     settings = get_settings()
     app.state.settings = settings
     logger.info("app_starting", environment=settings.ENVIRONMENT)
 
-    from retail_insights.core.telemetry import configure_telemetry
-
     configure_telemetry(app, settings)
-
-    from retail_insights.engine.schema_registry import get_schema_registry
 
     schema_registry = get_schema_registry(settings=settings)
     app.state.schema_registry = schema_registry
-    logger.info("schema_registry_initialized", table_count=len(schema_registry.get_table_info()))
-
-    from retail_insights.agents.graph import build_graph, get_memory_checkpointer
+    logger.info("schema_registry_initialized", table_count=len(schema_registry.get_valid_tables()))
 
     checkpointer = get_memory_checkpointer()
     graph = build_graph(checkpointer=checkpointer)
@@ -165,8 +155,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    from retail_insights.api.middleware import RequestContextMiddleware
+    from slowapi.errors import RateLimitExceeded
 
+    from retail_insights.api.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
+    from retail_insights.api.rate_limit import get_limiter, get_rate_limit_exceeded_handler
+
+    limiter = get_limiter(settings)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, get_rate_limit_exceeded_handler())
+
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
 
     app.add_middleware(

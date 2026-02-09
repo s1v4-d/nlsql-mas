@@ -12,6 +12,14 @@ Your task is to translate natural language questions into accurate, efficient SQ
 
 ## Important Rules
 
+### Table Selection
+- Choose the most appropriate table(s) based on the question context
+- Use the schema provided to identify relevant tables
+- For sales/revenue queries: prefer "Amazon Sale Report", "Sale Report", or "International sale Report"
+- For expense/cost queries: use "Expense IIGF"
+- For P&L/profit queries: use "P  L March 2021"
+- For warehouse metrics: use "Cloud Warehouse Compersion Chart"
+
 ### SELECT Only
 - Generate ONLY SELECT statements
 - Never use INSERT, UPDATE, DELETE, DROP, ALTER, or any DDL/DML
@@ -27,9 +35,11 @@ Your task is to translate natural language questions into accurate, efficient SQ
 - Never invent column names not in the schema
 
 ### Date Handling (CRITICAL)
-- Dates in the data use format: MM-DD-YY (e.g., "04-30-22")
-- Parse string dates: strptime(Date, '%m-%d-%y')
+- Check the column type in the schema before choosing date handling:
+  - If the Date column type is DATE: Use it directly (e.g., Date >= '2022-04-01')
+  - If the Date column type is VARCHAR: Use strptime(Date, '%m-%d-%y') to parse
 - Use DATE_TRUNC for period comparisons
+- Use standard date format in comparisons: 'YYYY-MM-DD'
 - Current date reference: {current_date}
 
 ### Aggregation Rules
@@ -47,27 +57,35 @@ Your task is to translate natural language questions into accurate, efficient SQ
 ## Available Schema
 {schema_context}
 
-## Examples
+## Examples (Multiple Tables)
 
-### Simple Aggregation
-Question: "What is the total revenue?"
-SQL: SELECT SUM(Amount) as total_revenue FROM amazon_sales LIMIT 1
+### Amazon Sales - Total Revenue
+Question: "What is the total revenue from Amazon sales?"
+SQL: SELECT SUM(Amount) as total_revenue FROM "Amazon Sale Report" LIMIT 1
 
-### Top N with Grouping
-Question: "What are the top 5 categories by revenue?"
-SQL: SELECT Category, SUM(Amount) as revenue FROM amazon_sales GROUP BY Category ORDER BY revenue DESC LIMIT 5
+### International Sales - Top Countries
+Question: "Which countries have the highest international sales?"
+SQL: SELECT CUSTOMER, SUM(PCS) as total_units, SUM(PCS * RATE) as revenue FROM "International sale Report" GROUP BY CUSTOMER ORDER BY revenue DESC LIMIT 10
 
-### Date Filtering
-Question: "Show sales from April 2022"
-SQL: SELECT * FROM amazon_sales WHERE strptime(Date, '%m-%d-%y') >= '2022-04-01' AND strptime(Date, '%m-%d-%y') < '2022-05-01' LIMIT 100
+### General Sales - Category Analysis
+Question: "Show sales breakdown by category"
+SQL: SELECT Category, COUNT(*) as orders, SUM("Gross amt.") as gross_amount FROM "Sale Report" GROUP BY Category ORDER BY gross_amount DESC LIMIT 20
 
-### Conditional Aggregation
-Question: "Compare shipped vs cancelled orders"
-SQL: SELECT Status, COUNT(*) as order_count, SUM(Amount) as revenue FROM amazon_sales WHERE Status IN ('Shipped', 'Cancelled') GROUP BY Status LIMIT 10
+### Expense Analysis
+Question: "What are our major expense categories?"
+SQL: SELECT * FROM "Expense IIGF" LIMIT 100
 
-### Filtering with Special Column Names
-Question: "Show orders by state"
-SQL: SELECT "ship-state", COUNT(*) as order_count FROM amazon_sales GROUP BY "ship-state" ORDER BY order_count DESC LIMIT 20
+### Profit & Loss
+Question: "Show profit and loss summary"
+SQL: SELECT * FROM "P  L March 2021" LIMIT 100
+
+### Date Filtering (Amazon Sales)
+Question: "Show Amazon sales from April 2022"
+SQL: SELECT * FROM "Amazon Sale Report" WHERE Date >= '2022-04-01' AND Date < '2022-05-01' LIMIT 100
+
+### Cross-Context Query
+Question: "Compare domestic and international sales"
+SQL: SELECT 'Domestic' as source, COUNT(*) as orders, SUM(Amount) as revenue FROM "Amazon Sale Report" UNION ALL SELECT 'International', COUNT(*), SUM(PCS * RATE) FROM "International sale Report" LIMIT 10
 """
 
 SQL_GENERATOR_USER_PROMPT = """## User Question
@@ -127,7 +145,7 @@ Previous SQL:
 
 Please fix these issues in your new query. Common fixes:
 - Check column names match schema exactly (case-sensitive)
-- Use strptime() for date parsing, not TO_DATE
+- Check Date column type: use strptime() only for VARCHAR dates, use dates directly for DATE type
 - Ensure all referenced tables exist
 - Add missing GROUP BY for non-aggregated columns
 """
@@ -145,44 +163,44 @@ SQL_GENERATOR_FEW_SHOT_EXAMPLES = [
     {
         "question": "What were total sales last month?",
         "sql": """SELECT SUM(Amount) as total_revenue
-FROM amazon_sales
-WHERE strptime(Date, '%m-%d-%y') >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
-  AND strptime(Date, '%m-%d-%y') < DATE_TRUNC('month', CURRENT_DATE)
+FROM "Amazon Sale Report"
+WHERE Date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')
+  AND Date < DATE_TRUNC('month', CURRENT_DATE)
 LIMIT 1""",
         "explanation": "Calculates total sales amount for the previous calendar month using date truncation.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["Amount", "Date"],
     },
     {
         "question": "Top 5 categories by sales",
         "sql": """SELECT Category, SUM(Amount) as revenue
-FROM amazon_sales
+FROM "Amazon Sale Report"
 GROUP BY Category
 ORDER BY revenue DESC
 LIMIT 5""",
         "explanation": "Aggregates sales by category and returns the top 5 highest revenue categories.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["Category", "Amount"],
     },
     {
         "question": "Compare B2B vs B2C orders",
         "sql": """SELECT B2B, COUNT(*) as order_count, SUM(Amount) as revenue, AVG(Amount) as avg_order_value
-FROM amazon_sales
+FROM "Amazon Sale Report"
 GROUP BY B2B
 LIMIT 10""",
         "explanation": "Compares B2B and B2C segments by order count, total revenue, and average order value.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["B2B", "Amount"],
     },
     {
         "question": "Show orders from Maharashtra",
         "sql": """SELECT "Order ID", Date, Amount, Status, "ship-city"
-FROM amazon_sales
+FROM "Amazon Sale Report"
 WHERE "ship-state" = 'MAHARASHTRA'
 ORDER BY Amount DESC
 LIMIT 100""",
         "explanation": "Retrieves orders shipped to Maharashtra state, sorted by amount.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["Order ID", "Date", "Amount", "Status", "ship-city", "ship-state"],
     },
     {
@@ -191,22 +209,22 @@ LIMIT 100""",
     COUNT(*) FILTER (WHERE Status = 'Cancelled') as cancelled_count,
     COUNT(*) as total_count,
     ROUND(100.0 * COUNT(*) FILTER (WHERE Status = 'Cancelled') / NULLIF(COUNT(*), 0), 2) as cancellation_rate
-FROM amazon_sales
+FROM "Amazon Sale Report"
 LIMIT 1""",
         "explanation": "Calculates overall cancellation rate using conditional aggregation and NULLIF to prevent division by zero.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["Status"],
     },
     {
         "question": "Average order value by fulfillment type",
         "sql": """SELECT Fulfilment, AVG(Amount) as avg_order_value, COUNT(*) as order_count
-FROM amazon_sales
+FROM "Amazon Sale Report"
 WHERE Amount IS NOT NULL
 GROUP BY Fulfilment
 ORDER BY avg_order_value DESC
 LIMIT 10""",
         "explanation": "Computes average order value grouped by fulfillment type (Merchant vs Amazon), excluding null amounts.",
-        "tables_used": ["amazon_sales"],
+        "tables_used": ["Amazon Sale Report"],
         "columns_used": ["Fulfilment", "Amount"],
     },
 ]

@@ -1,6 +1,6 @@
-# Development Environment - Main Configuration
-# ---------------------------------------------
-# Provisions networking and S3 for dev environment
+# Environment Configuration
+
+# Single environment setup - use tfvars to configure for dev/staging/prod
 
 terraform {
   required_version = ">= 1.5.0"
@@ -28,9 +28,9 @@ provider "aws" {
 # Data Sources
 data "aws_caller_identity" "current" {}
 
-# =============================================================================
+
 # Variables
-# =============================================================================
+
 
 variable "project_name" {
   type        = string
@@ -154,9 +154,44 @@ variable "aurora_max_capacity" {
   default     = 4
 }
 
-# =============================================================================
+
+# GitHub OIDC Module
+
+
+variable "github_org" {
+  type        = string
+  description = "GitHub organization or user name"
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository name"
+}
+
+variable "terraform_state_bucket" {
+  type        = string
+  description = "S3 bucket for Terraform state"
+}
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  project_name           = var.project_name
+  environment            = var.environment
+  github_org             = var.github_org
+  github_repo            = var.github_repo
+  terraform_state_bucket = var.terraform_state_bucket
+  terraform_lock_table   = "terraform-locks"
+  ecr_repository_arns    = var.enable_ecs ? values(module.ecs[0].ecr_repository_arns) : []
+  ecs_cluster_arns       = var.enable_ecs ? [module.ecs[0].cluster_arn] : []
+  s3_data_bucket_arn     = module.s3.data_lake_bucket_arn
+
+  tags = var.tags
+}
+
+
 # Networking Module
-# =============================================================================
+
 
 module "networking" {
   source = "../../modules/networking"
@@ -173,9 +208,9 @@ module "networking" {
   tags                     = var.tags
 }
 
-# =============================================================================
+
 # S3 Module
-# =============================================================================
+
 
 module "s3" {
   source = "../../modules/s3"
@@ -193,9 +228,9 @@ module "s3" {
   tags                       = var.tags
 }
 
-# =============================================================================
+
 # ECS Module (Optional)
-# =============================================================================
+
 
 module "ecs" {
   source = "../../modules/ecs"
@@ -244,9 +279,9 @@ module "ecs" {
   tags = var.tags
 }
 
-# =============================================================================
+
 # Aurora Module (Optional)
-# =============================================================================
+
 
 module "aurora" {
   source = "../../modules/aurora"
@@ -276,9 +311,9 @@ module "aurora" {
   tags = var.tags
 }
 
-# =============================================================================
+
 # Outputs
-# =============================================================================
+
 
 output "vpc_id" {
   description = "VPC ID"
@@ -355,4 +390,15 @@ output "aurora_reader_endpoint" {
 output "aurora_app_credentials_secret_arn" {
   description = "Aurora app credentials secret ARN"
   value       = var.enable_aurora ? module.aurora[0].app_credentials_secret_arn : null
+}
+
+# GitHub OIDC Outputs
+output "github_actions_role_arn" {
+  description = "IAM role ARN for GitHub Actions"
+  value       = module.github_oidc.github_actions_role_arn
+}
+
+output "terraform_role_arn" {
+  description = "IAM role ARN for Terraform"
+  value       = module.github_oidc.terraform_role_arn
 }

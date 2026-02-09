@@ -3,9 +3,56 @@
 This module defines Pydantic models for all incoming API requests.
 """
 
+import re
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+SQL_INJECTION_PATTERNS = [
+    r"(?i)(--|#|;)\s*$",
+    r"(?i)\b(DROP|DELETE|INSERT|UPDATE|ALTER|TRUNCATE|CREATE)\b.*\bTABLE\b",
+    r"(?i)\b(UNION\s+ALL|UNION\s+SELECT)\b",
+    r"(?i)\bEXEC\s*\(",
+    r"(?i)\b(xp_|sp_)\w+",
+    r"(?i)1\s*=\s*1|'\s*OR\s*'1'\s*=\s*'1",
+    r"(?i)WAITFOR\s+DELAY",
+    r"(?i)BENCHMARK\s*\(",
+    r"(?i)SLEEP\s*\(",
+]
+
+XSS_PATTERNS = [
+    r"<\s*script",
+    r"javascript\s*:",
+    r"on\w+\s*=",
+    r"<\s*iframe",
+    r"<\s*object",
+    r"<\s*embed",
+    r"data\s*:\s*text/html",
+]
+
+
+def sanitize_input(value: str, field_name: str = "input") -> str:
+    """Validate input for potential injection patterns.
+
+    Args:
+        value: Input string to validate.
+        field_name: Name of the field for error messages.
+
+    Returns:
+        The validated string.
+
+    Raises:
+        ValueError: If suspicious patterns are detected.
+    """
+    for pattern in SQL_INJECTION_PATTERNS:
+        if re.search(pattern, value):
+            raise ValueError(f"Potentially unsafe content detected in {field_name}")
+
+    for pattern in XSS_PATTERNS:
+        if re.search(pattern, value, re.IGNORECASE):
+            raise ValueError(f"Potentially unsafe HTML/script content in {field_name}")
+
+    return value
 
 
 class QueryMode(StrEnum):
@@ -60,6 +107,22 @@ class QueryRequest(BaseModel):
         }
     }
 
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        """Validate question for injection patterns."""
+        return sanitize_input(v, "question")
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_id(cls, v: str | None) -> str | None:
+        """Validate session_id format."""
+        if v is None:
+            return v
+        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
+            raise ValueError("session_id must be alphanumeric with dashes/underscores")
+        return v
+
 
 class SummarizeRequest(BaseModel):
     """Request for automated sales summary.
@@ -102,6 +165,14 @@ class SummarizeRequest(BaseModel):
             ]
         }
     }
+
+    @field_validator("time_period", "region", "category")
+    @classmethod
+    def validate_string_fields(cls, v: str | None) -> str | None:
+        """Validate string fields for injection patterns."""
+        if v is None:
+            return v
+        return sanitize_input(v, "filter")
 
 
 class SchemaRefreshRequest(BaseModel):

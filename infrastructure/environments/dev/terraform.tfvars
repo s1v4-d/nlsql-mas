@@ -1,10 +1,15 @@
-# Development Environment Variables
-# -----------------------------------
-# Override defaults for dev environment
+# Environment Variables
+# ----------------------
+# Configure environment via these variables
 
 project_name = "nlsql"
 environment  = "dev"
 aws_region   = "us-east-1"
+
+# GitHub OIDC Configuration
+github_org             = "s1v4-d"
+github_repo            = "nlsql-mas"
+terraform_state_bucket = "nlsql-terraform-state"  # Create this bucket first
 
 # VPC Configuration
 vpc_cidr                 = "10.2.0.0/16"

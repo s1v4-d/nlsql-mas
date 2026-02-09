@@ -1,5 +1,5 @@
 # Terraform Provider Configuration
-# ---------------------------------
+
 # AWS Provider version constraints for the networking module
 
 terraform {
