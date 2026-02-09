@@ -51,7 +51,7 @@ async def process_query(
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
-    api_key: ApiKeyDep = None,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> QueryResult:
     """Process a natural language query using the multi-agent workflow.
@@ -183,7 +183,7 @@ async def process_query_stream(
     body: QueryRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
-    api_key: ApiKeyDep = None,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> StreamingResponse:
     """Process a query and stream agent updates via Server-Sent Events.
@@ -316,7 +316,7 @@ async def generate_summary(
     body: SummarizeRequest,
     graph: GraphDep,
     schema_registry: SchemaRegistryDep,
-    api_key: ApiKeyDep = None,
+    user: ApiKeyDep = None,
     x_session_id: str | None = Header(default=None),
 ) -> SummaryResult:
     """Generate an automated sales summary for a time period.
