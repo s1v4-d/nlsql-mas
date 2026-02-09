@@ -393,5 +393,5 @@ class TestSQLGeneratorIntegration:
 
         for example in date_examples:
             if "month" in example["question"].lower() or "last" in example["question"].lower():
-                # Should use strptime for parsing
-                assert "strptime" in example["sql"]
+                # Should use DATE_TRUNC or date comparisons for date filtering
+                assert "DATE_TRUNC" in example["sql"] or "Date >=" in example["sql"]

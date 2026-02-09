@@ -159,14 +159,19 @@ class DuckDBConnector:
             logger.warning(f"Failed to configure S3 httpfs: {e}")
 
     def get_connection(self) -> duckdb.DuckDBPyConnection:
-        """Get a thread-local DuckDB connection.
+        """Get the shared DuckDB connection.
+
+        Uses a single shared connection for in-memory databases so that
+        registered views are accessible across all operations.
 
         Returns:
-            Thread-local DuckDB connection.
+            Shared DuckDB connection.
         """
-        if not hasattr(self._local, "connection") or self._local.connection is None:
-            self._local.connection = self._create_connection()
-        return self._local.connection
+        if self._connection is None:
+            with self._lock:
+                if self._connection is None:
+                    self._connection = self._create_connection()
+        return self._connection
 
     @contextmanager
     def connection(self) -> Generator[duckdb.DuckDBPyConnection]:
@@ -320,10 +325,10 @@ class DuckDBConnector:
         return columns
 
     def close(self) -> None:
-        """Close all connections."""
-        if hasattr(self._local, "connection") and self._local.connection:
-            self._local.connection.close()
-            self._local.connection = None
+        """Close the main connection."""
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
         logger.debug("DuckDB connector closed")
 
     def __enter__(self) -> DuckDBConnector:

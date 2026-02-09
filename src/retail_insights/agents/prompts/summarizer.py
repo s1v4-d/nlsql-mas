@@ -78,7 +78,9 @@ SUMMARIZER_USER_PROMPT_EMPTY = """## User Question
 ## Query Information
 The query executed successfully but returned no results.
 
-Explain to the user why no data was found and suggest how they might modify their question to find relevant information."""
+{date_range_info}
+
+Explain to the user why no data was found. If the date ranges above show the data doesn't cover the requested time period, specifically mention this. Suggest how they might modify their question to find relevant information based on the available data dates."""
 
 SUMMARIZER_USER_PROMPT_ERROR = """## User Question
 {user_query}
@@ -224,6 +226,7 @@ def format_summarizer_prompt(
     execution_time_ms: float = 0.0,
     execution_error: str | None = None,
     intent: str | None = None,
+    available_date_ranges: str | None = None,
 ) -> tuple[str, str]:
     """Format the summarizer prompt based on result type.
 
@@ -234,6 +237,7 @@ def format_summarizer_prompt(
         execution_time_ms: Query execution time in milliseconds.
         execution_error: Error message if execution failed.
         intent: Router-classified intent (query/summarize/chat).
+        available_date_ranges: Text describing available date ranges for context.
 
     Returns:
         Tuple of (system_prompt, user_prompt).
@@ -262,7 +266,11 @@ def format_summarizer_prompt(
             formatted_results=formatted_results,
         )
     elif result_type == "empty":
-        user_prompt = SUMMARIZER_USER_PROMPT_EMPTY.format(user_query=user_query)
+        date_info = available_date_ranges or "No date range information available."
+        user_prompt = SUMMARIZER_USER_PROMPT_EMPTY.format(
+            user_query=user_query,
+            date_range_info=date_info,
+        )
     elif result_type == "error":
         # Parse error type from message
         error_type = "query error"

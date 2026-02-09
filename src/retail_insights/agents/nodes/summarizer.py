@@ -13,6 +13,7 @@ from langchain_openai import ChatOpenAI
 from retail_insights.agents.prompts.summarizer import format_summarizer_prompt
 from retail_insights.agents.state import RetailInsightsState
 from retail_insights.core.config import get_settings
+from retail_insights.engine.schema_registry import get_schema_registry
 
 logger = structlog.get_logger(__name__)
 
@@ -58,6 +59,14 @@ async def summarize_results(state: RetailInsightsState) -> dict:
         api_key=settings.OPENAI_API_KEY.get_secret_value(),
     )
 
+    # Get available date ranges for context (especially for empty results)
+    available_date_ranges = ""
+    try:
+        registry = get_schema_registry()
+        available_date_ranges = registry.get_available_date_ranges_text()
+    except Exception as e:
+        logger.debug("could_not_get_date_ranges", error=str(e))
+
     # Format prompts based on result type
     system_prompt, user_prompt = format_summarizer_prompt(
         user_query=state["user_query"],
@@ -66,6 +75,7 @@ async def summarize_results(state: RetailInsightsState) -> dict:
         execution_time_ms=state.get("execution_time_ms", 0.0),
         execution_error=state.get("execution_error"),
         intent=state.get("intent"),
+        available_date_ranges=available_date_ranges,
     )
 
     try:

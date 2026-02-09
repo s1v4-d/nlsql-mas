@@ -39,7 +39,7 @@ COMPOSE := docker compose -f $(COMPOSE_FILE)
 .DEFAULT_GOAL := help
 .PHONY: help init init-infra build start start-d start-db stop stop-v logs watch dev \
         run-ui lint lint-fix format typecheck check test test-unit test-integration test-cov \
-        clean clean-pyc clean-cache ci-lint ci-test qa shell-api shell-db ps info install-uv
+        clean clean-pyc clean-cache ci-lint ci-test qa pre-commit shell-api shell-db ps info install-uv
 
 help:
 	@echo ""
@@ -74,6 +74,7 @@ help:
 	@echo "  typecheck    Run mypy type checker"
 	@echo "  test         Run all tests"
 	@echo "  qa           Run format, lint, typecheck, test"
+	@echo "  pre-commit   Run all pre-commit checks (format, lint, typecheck, test)"
 	@echo ""
 
 info:
@@ -253,3 +254,8 @@ ci-test:
 	$(UV) run pytest $(TESTS_DIR) -v --junitxml=junit.xml --cov=$(SRC_DIR) --cov-report=xml
 
 qa: format lint typecheck test
+
+pre-commit: format lint typecheck test
+	@echo ""
+	@echo "=== All pre-commit checks passed ==="
+	@echo "Ready to commit!"

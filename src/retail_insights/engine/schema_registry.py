@@ -284,11 +284,37 @@ class SchemaRegistry:
                 for name, schema in new_schemas.items():
                     self._cache[name] = schema
 
+            # Register discovered tables with DuckDB as views
+            self._register_tables_with_duckdb(new_schemas)
+
             self._last_refresh = datetime.now()
             self._initialized = True
 
             logger.info(f"Schema refresh complete: {len(new_schemas)} tables discovered")
             return self.get_state()
+
+    def _register_tables_with_duckdb(self, schemas: dict[str, TableSchema]) -> None:
+        """Register discovered tables with DuckDB as views.
+
+        Creates views for each table discovered from local/S3 sources so
+        they can be queried by table name instead of using read_parquet().
+
+        Args:
+            schemas: Dictionary of table_name -> TableSchema.
+        """
+        conn = self.connector.get_connection()
+
+        for table_name, schema in schemas.items():
+            if schema.source_type in ("local", "s3") and schema.source_path:
+                try:
+                    path_str = schema.source_path.replace("\\", "/")
+                    read_func = "read_csv_auto" if schema.file_format == "csv" else "read_parquet"
+
+                    sql = f"CREATE OR REPLACE VIEW \"{table_name}\" AS SELECT * FROM {read_func}('{path_str}')"  # nosec B608
+                    conn.execute(sql)
+                    logger.debug(f"Registered table view: {table_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to register table {table_name}: {e}")
 
     def _discover_s3_parquet(self, source: DataSource) -> dict[str, TableSchema]:
         """Discover Parquet files in S3 bucket.
@@ -398,6 +424,9 @@ class SchemaRegistry:
                 ).fetchone()
                 row_count = count_result[0] if count_result else None
 
+                # Detect date range for date columns
+                date_info = self._detect_date_range(conn, columns, read_func, path_str)
+
                 schemas[table_name] = TableSchema(
                     name=table_name,
                     source_type="local",
@@ -406,6 +435,9 @@ class SchemaRegistry:
                     row_count=row_count,
                     last_modified=datetime.fromtimestamp(file_path.stat().st_mtime),
                     file_format=file_format,
+                    date_range_start=date_info.get("date_range_start"),
+                    date_range_end=date_info.get("date_range_end"),
+                    date_column=date_info.get("date_column"),
                 )
 
             except Exception as e:
@@ -541,6 +573,58 @@ class SchemaRegistry:
 
         return columns
 
+    def _detect_date_range(
+        self,
+        conn,
+        columns: list[ColumnSchema],
+        read_func: str,
+        path: str,
+    ) -> dict[str, str | None]:
+        """Detect date range from DATE/TIMESTAMP columns for LLM context.
+
+        Args:
+            conn: DuckDB connection.
+            columns: List of column schemas.
+            read_func: DuckDB read function name.
+            path: Path to the file.
+
+        Returns:
+            Dict with date_column, date_range_start, date_range_end.
+        """
+        date_types = ("DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE")
+        date_column_names = ("date", "order_date", "created_at", "timestamp", "sale_date")
+
+        date_col = None
+        for col in columns:
+            if col.data_type.upper() in date_types:
+                if col.name.lower() in date_column_names:
+                    date_col = col
+                    break
+                if date_col is None:
+                    date_col = col
+
+        if not date_col:
+            return {"date_column": None, "date_range_start": None, "date_range_end": None}
+
+        try:
+            result = conn.execute(
+                f'SELECT MIN("{date_col.name}") as min_date, MAX("{date_col.name}") as max_date '
+                f"FROM {read_func}('{path}')"  # nosec B608
+            ).fetchone()
+
+            if result and result[0] and result[1]:
+                min_date = str(result[0])[:10]
+                max_date = str(result[1])[:10]
+                return {
+                    "date_column": date_col.name,
+                    "date_range_start": min_date,
+                    "date_range_end": max_date,
+                }
+        except Exception as e:
+            logger.debug(f"Failed to detect date range: {e}")
+
+        return {"date_column": date_col.name, "date_range_start": None, "date_range_end": None}
+
     def get_table_info(self, force_refresh: bool = False) -> dict[str, TableSchema]:
         """Get table information (alias to get_schema for backward compatibility).
 
@@ -599,6 +683,13 @@ class SchemaRegistry:
             lines.append(f"Source: {schema.source_type}")
             if schema.row_count:
                 lines.append(f"Rows: ~{schema.row_count:,}")
+
+            if schema.date_range_start and schema.date_range_end:
+                lines.append(
+                    f"**Date Range**: {schema.date_range_start} to {schema.date_range_end} "
+                    f"(column: `{schema.date_column}`)"
+                )
+
             lines.append("")
             lines.append("| Column | Type | Samples |")
             lines.append("|--------|------|---------|")
@@ -617,6 +708,41 @@ class SchemaRegistry:
     def get_schema_for_prompt(self, max_tables: int = 20) -> str:
         """Alias for get_schema_context for backward compatibility."""
         return self.get_schema_context(max_tables=max_tables)
+
+    def get_date_ranges(self) -> dict[str, dict[str, str | None]]:
+        """Get date ranges for all tables with date columns.
+
+        Returns:
+            Dict of table_name -> {date_column, date_range_start, date_range_end}.
+        """
+        schemas = self.get_schema()
+        date_ranges = {}
+
+        for table_name, schema in schemas.items():
+            if schema.date_range_start and schema.date_range_end:
+                date_ranges[table_name] = {
+                    "date_column": schema.date_column,
+                    "date_range_start": schema.date_range_start,
+                    "date_range_end": schema.date_range_end,
+                }
+
+        return date_ranges
+
+    def get_available_date_ranges_text(self) -> str:
+        """Get human-readable text describing available date ranges.
+
+        Returns:
+            Formatted string with date ranges for all tables.
+        """
+        date_ranges = self.get_date_ranges()
+        if not date_ranges:
+            return ""
+
+        lines = ["Available data date ranges:"]
+        for table_name, info in date_ranges.items():
+            lines.append(f"- {table_name}: {info['date_range_start']} to {info['date_range_end']}")
+
+        return "\n".join(lines)
 
 
 # Module-level convenience functions

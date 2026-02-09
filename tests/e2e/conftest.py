@@ -33,6 +33,7 @@ def mock_env():
             "DEBUG": "true",
             "ENVIRONMENT": "development",
             "RATE_LIMIT_ENABLED": "false",
+            "AUTH_ENABLED": "false",
         },
     ):
         from retail_insights.api.rate_limit import reset_limiter

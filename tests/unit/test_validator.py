@@ -35,7 +35,7 @@ class TestSQLSyntaxValidation:
 
         assert result["sql_is_valid"] is True
         assert result["validation_status"] == "valid"
-        assert result.get("validation_errors") is None
+        assert result.get("validation_errors") == []
 
     @pytest.mark.asyncio
     async def test_invalid_syntax(self) -> None:

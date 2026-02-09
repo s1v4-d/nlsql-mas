@@ -10,7 +10,11 @@ from typing import TYPE_CHECKING
 
 from langgraph.graph import END, StateGraph
 
+from retail_insights.agents.nodes.executor import execute_query
 from retail_insights.agents.nodes.router import route_query
+from retail_insights.agents.nodes.sql_generator import generate_sql
+from retail_insights.agents.nodes.summarizer import summarize_results
+from retail_insights.agents.nodes.validator import validate_sql
 from retail_insights.agents.state import RetailInsightsState
 
 if TYPE_CHECKING:
@@ -158,6 +162,7 @@ def build_graph(
     checkpointer: BaseCheckpointSaver | None = None,
     *,
     use_placeholder_router: bool = False,
+    use_placeholder_nodes: bool = False,
 ) -> CompiledStateGraph:
     """Build the multi-agent workflow graph.
 
@@ -174,6 +179,8 @@ def build_graph(
         checkpointer: Optional checkpoint saver for persistence (PostgresSaver/MemorySaver).
         use_placeholder_router: If True, use placeholder router for testing (no LLM calls).
             Defaults to False (uses real LLM-based router).
+        use_placeholder_nodes: If True, use placeholder implementations for all nodes.
+            Defaults to False (uses real implementations).
 
     Returns:
         Compiled StateGraph ready for invocation.
@@ -189,14 +196,27 @@ def build_graph(
     workflow = StateGraph(RetailInsightsState)
 
     # Select router node (real or placeholder)
-    router_node = placeholder_router_node if use_placeholder_router else route_query
+    use_placeholders = use_placeholder_nodes or use_placeholder_router
+    router_node = placeholder_router_node if use_placeholders else route_query
+
+    # Select node implementations (real or placeholder)
+    if use_placeholder_nodes:
+        sql_gen_node = sql_generator_node
+        valid_node = validator_node
+        exec_node = executor_node
+        summ_node = summarizer_node
+    else:
+        sql_gen_node = generate_sql
+        valid_node = validate_sql
+        exec_node = execute_query
+        summ_node = summarize_results
 
     # Add nodes
     workflow.add_node("router", router_node)
-    workflow.add_node("sql_generator", sql_generator_node)
-    workflow.add_node("validator", validator_node)
-    workflow.add_node("executor", executor_node)
-    workflow.add_node("summarizer", summarizer_node)
+    workflow.add_node("sql_generator", sql_gen_node)
+    workflow.add_node("validator", valid_node)
+    workflow.add_node("executor", exec_node)
+    workflow.add_node("summarizer", summ_node)
 
     # Set entry point
     workflow.set_entry_point("router")

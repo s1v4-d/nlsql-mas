@@ -298,7 +298,7 @@ class TestRouterIntegration:
 
         # Build graph with placeholder router (no LLM calls)
         checkpointer = get_memory_checkpointer()
-        graph = build_graph(checkpointer=checkpointer, use_placeholder_router=True)
+        graph = build_graph(checkpointer=checkpointer, use_placeholder_nodes=True)
 
         state = create_initial_state(
             "What are the top products?",
