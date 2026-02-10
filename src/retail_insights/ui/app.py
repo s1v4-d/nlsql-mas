@@ -33,6 +33,7 @@ def init_session_state() -> None:
         st.session_state.api_key = ""
         st.session_state.authenticated = False
         st.session_state.auth_error = ""
+        st.session_state.auth_scope = ""
 
 
 def check_api_health() -> bool:
@@ -45,17 +46,21 @@ def check_api_health() -> bool:
 
 
 def validate_api_key(api_key: str) -> tuple[bool, str]:
-    """Validate API key by making a test request to the admin endpoint."""
+    """Validate API key by making a test request to the auth endpoint."""
     if not api_key:
         return False, "API key cannot be empty"
     try:
         with httpx.Client(timeout=5.0) as client:
             response = client.get(
-                f"{API_URL}/admin/schema/tables",
+                f"{API_URL}/auth/validate",
                 headers={"X-API-Key": api_key},
             )
             if response.status_code == 200:
-                return True, ""
+                data = response.json()
+                if data.get("valid"):
+                    scope = data.get("scope", "user")
+                    return True, scope
+                return False, "Invalid API key"
             elif response.status_code == 401:
                 return False, "Invalid API key"
             elif response.status_code == 403:
@@ -230,11 +235,15 @@ def render_sidebar() -> None:
 
         st.markdown("### Authentication")
         if st.session_state.authenticated:
-            st.success("Authenticated")
+            scope_label = (
+                st.session_state.auth_scope.upper() if st.session_state.auth_scope else "USER"
+            )
+            st.success(f"Authenticated ({scope_label})")
             if st.button("Logout", use_container_width=True):
                 st.session_state.api_key = ""
                 st.session_state.authenticated = False
                 st.session_state.auth_error = ""
+                st.session_state.auth_scope = ""
                 st.rerun()
         else:
             api_key_input = st.text_input(
@@ -247,14 +256,15 @@ def render_sidebar() -> None:
             )
             if st.button("Authenticate", use_container_width=True, type="primary"):
                 if api_key_input:
-                    valid, error = validate_api_key(api_key_input)
+                    valid, scope_or_error = validate_api_key(api_key_input)
                     if valid:
                         st.session_state.api_key = api_key_input
                         st.session_state.authenticated = True
                         st.session_state.auth_error = ""
+                        st.session_state.auth_scope = scope_or_error
                         st.rerun()
                     else:
-                        st.session_state.auth_error = error
+                        st.session_state.auth_error = scope_or_error
                 else:
                     st.session_state.auth_error = "Please enter an API key"
             if st.session_state.auth_error:
@@ -392,7 +402,7 @@ def render_main_chat() -> None:
                         response = query_api(question, "query")
                     else:
                         st.write("Generating summary...")
-                        response = summarize_api()
+                        response = query_api(question, "summarize")
 
                     if response.get("success"):
                         status.update(label="Complete!", state="complete", expanded=False)

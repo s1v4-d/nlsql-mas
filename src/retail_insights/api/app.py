@@ -1,9 +1,9 @@
 """FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -11,6 +11,7 @@ from retail_insights.agents.graph import (
     build_graph,
     get_async_checkpointer_from_settings,
 )
+from retail_insights.api.auth import AuthenticatedUser, verify_api_key
 from retail_insights.api.dependencies import request_id_ctx
 from retail_insights.api.routes.admin import router as admin_router
 from retail_insights.api.routes.query import router as query_router
@@ -227,6 +228,19 @@ def create_app() -> FastAPI:
                 "request_id": request_id_ctx.get(),
             },
         )
+
+    @app.get("/auth/validate", tags=["auth"])
+    async def validate_api_key(
+        user: Annotated[AuthenticatedUser | None, Depends(verify_api_key)],
+    ) -> dict[str, Any]:
+        """Validate an API key and return scope.
+
+        Returns user info if authentication succeeds.
+        Works with both user and admin keys.
+        """
+        if user is None:
+            return {"valid": True, "scope": "anonymous", "auth_disabled": True}
+        return {"valid": True, "scope": user.scope, "key_prefix": user.key_prefix}
 
     return app
 
