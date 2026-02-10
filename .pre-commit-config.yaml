@@ -54,6 +54,46 @@ repos:
       - id: validate-pyproject
         name: validate pyproject.toml
 
+  # Terraform linting and validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.3
+    hooks:
+      # Format Terraform files
+      - id: terraform_fmt
+        name: terraform fmt
+        args:
+          - --args=-recursive
+
+      # Validate Terraform configuration
+      - id: terraform_validate
+        name: terraform validate
+        args:
+          - --hook-config=--retry-once-with-cleanup
+          - --env-vars=AWS_DEFAULT_REGION="us-east-1"
+
+      # Generate documentation from Terraform modules
+      - id: terraform_docs
+        name: terraform-docs
+        args:
+          - --hook-config=--path-to-file=README.md
+          - --hook-config=--add-to-existing-file=true
+          - --args=--config=.terraform-docs.yml
+
+      # Lint with TFLint
+      - id: terraform_tflint
+        name: tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+          - --args=--module
+          - --hook-config=--delegate-chdir
+
+      # Security scanning with Trivy
+      - id: terraform_trivy
+        name: trivy security scan
+        args:
+          - --args=--severity=HIGH,CRITICAL
+          - --args=--exit-code=1
+
 ci:
   autofix_prs: false
   autoupdate_schedule: monthly

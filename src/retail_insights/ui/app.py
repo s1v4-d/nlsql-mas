@@ -30,6 +30,9 @@ def init_session_state() -> None:
         st.session_state.query_mode = "query"
         st.session_state.last_results = None
         st.session_state.api_healthy = True
+        st.session_state.api_key = ""
+        st.session_state.authenticated = False
+        st.session_state.auth_error = ""
 
 
 def check_api_health() -> bool:
@@ -41,7 +44,37 @@ def check_api_health() -> bool:
         return False
 
 
+def validate_api_key(api_key: str) -> tuple[bool, str]:
+    """Validate API key by making a test request to the admin endpoint."""
+    if not api_key:
+        return False, "API key cannot be empty"
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(
+                f"{API_URL}/admin/schema/tables",
+                headers={"X-API-Key": api_key},
+            )
+            if response.status_code == 200:
+                return True, ""
+            elif response.status_code == 401:
+                return False, "Invalid API key"
+            elif response.status_code == 403:
+                return False, "Access denied"
+            else:
+                return False, f"Authentication failed (HTTP {response.status_code})"
+    except httpx.ConnectError:
+        return False, "Cannot connect to API server"
+    except Exception as e:
+        return False, f"Validation failed: {e!s}"
+
+
 def query_api(question: str, mode: str = "query") -> dict[str, Any]:
+    if not st.session_state.authenticated:
+        return {
+            "success": False,
+            "error_type": "auth",
+            "message": "Please authenticate first. Enter your API key in the sidebar and click Authenticate.",
+        }
     try:
         with httpx.Client(timeout=API_TIMEOUT) as client:
             response = client.post(
@@ -52,7 +85,10 @@ def query_api(question: str, mode: str = "query") -> dict[str, Any]:
                     "session_id": st.session_state.session_id,
                     "max_results": st.session_state.max_results,
                 },
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "X-API-Key": st.session_state.api_key,
+                },
             )
             response.raise_for_status()
             return response.json()
@@ -95,6 +131,12 @@ def summarize_api(
     category: str | None = None,
     include_trends: bool = True,
 ) -> dict[str, Any]:
+    if not st.session_state.authenticated:
+        return {
+            "success": False,
+            "error_type": "auth",
+            "message": "Please authenticate first. Enter your API key in the sidebar and click Authenticate.",
+        }
     try:
         with httpx.Client(timeout=API_TIMEOUT) as client:
             response = client.post(
@@ -108,6 +150,7 @@ def summarize_api(
                 headers={
                     "Content-Type": "application/json",
                     "X-Session-ID": st.session_state.session_id,
+                    "X-API-Key": st.session_state.api_key,
                 },
             )
             response.raise_for_status()
@@ -131,9 +174,14 @@ def display_error(response: dict[str, Any]) -> None:
     elif error_type == "timeout":
         st.error(message)
         st.info("Try adding date filters or limiting your query scope.")
+    elif error_type == "auth":
+        st.error(message)
+        st.info("Enter your API key in the sidebar under 'Authentication'.")
     elif error_type == "http":
         status = response.get("status_code", "")
         st.error(f"HTTP {status}: {message}")
+        if status == 401:
+            st.info("Check your API key in the sidebar.")
     else:
         st.error(message)
 
@@ -177,6 +225,42 @@ def render_sidebar() -> None:
             st.success("API Connected")
         else:
             st.error("API Offline")
+
+        st.markdown("---")
+
+        st.markdown("### Authentication")
+        if st.session_state.authenticated:
+            st.success("Authenticated")
+            if st.button("Logout", use_container_width=True):
+                st.session_state.api_key = ""
+                st.session_state.authenticated = False
+                st.session_state.auth_error = ""
+                st.rerun()
+        else:
+            api_key_input = st.text_input(
+                "API Key",
+                value="",
+                type="password",
+                placeholder="Enter your API key",
+                help="Required for API access",
+                key="api_key_input",
+            )
+            if st.button("Authenticate", use_container_width=True, type="primary"):
+                if api_key_input:
+                    valid, error = validate_api_key(api_key_input)
+                    if valid:
+                        st.session_state.api_key = api_key_input
+                        st.session_state.authenticated = True
+                        st.session_state.auth_error = ""
+                        st.rerun()
+                    else:
+                        st.session_state.auth_error = error
+                else:
+                    st.session_state.auth_error = "Please enter an API key"
+            if st.session_state.auth_error:
+                st.error(st.session_state.auth_error)
+            else:
+                st.warning("API key required")
 
         st.markdown("---")
 
@@ -269,27 +353,6 @@ def render_chat_message(
 
         if execution_time:
             st.caption(f"{execution_time:.0f}ms")
-
-
-def process_query(question: str) -> None:
-    mode = st.session_state.query_mode
-
-    with st.status("Processing your query...", expanded=True) as status:
-        st.write("Analyzing question...")
-
-        if mode == "query":
-            st.write("Generating SQL...")
-            response = query_api(question, mode)
-        else:
-            st.write("Generating summary...")
-            response = summarize_api(time_period="last_quarter")
-
-        if response.get("success"):
-            status.update(label="Complete!", state="complete", expanded=False)
-        else:
-            status.update(label="Error", state="error", expanded=False)
-
-    return response
 
 
 def render_main_chat() -> None:

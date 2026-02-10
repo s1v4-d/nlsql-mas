@@ -40,9 +40,9 @@ def route_by_intent(state: RetailInsightsState) -> str:
         - "summarizer" for chat intent (direct conversation)
         - "__end__" for clarify intent (return to user)
     """
-    intent = state.get("intent", "query")
+    intent = state.get("intent") or "query"
 
-    routing_map = {
+    routing_map: dict[str, str] = {
         "query": "schema_discovery",
         "summarize": "executor",
         "chat": "summarizer",
@@ -287,22 +287,148 @@ def get_memory_checkpointer():
     return MemorySaver()
 
 
-async def get_postgres_checkpointer(connection_string: str):
-    """Get a PostgreSQL checkpointer for production.
+def get_redis_checkpointer(redis_url: str):
+    """Get a Redis checkpointer for production conversation memory (sync).
+
+    Redis is preferred for checkpointing as it provides:
+    - Fast read/write for conversation state
+    - Built-in TTL for automatic session cleanup
+    - Scalable across multiple API workers
 
     Args:
-        connection_string: PostgreSQL connection string.
+        redis_url: Redis connection URL (e.g., 'redis://localhost:6379').
 
     Returns:
-        AsyncPostgresSaver instance for persistent state storage.
+        RedisSaver instance for persistent conversation memory.
+
+    Note:
+        For async contexts (FastAPI), use get_async_redis_checkpointer instead.
+    """
+    from langgraph.checkpoint.redis import RedisSaver
+
+    checkpointer = RedisSaver(redis_url=redis_url, ttl={"default_ttl": 60})
+    checkpointer.setup()
+    return checkpointer
+
+
+async def get_async_redis_checkpointer(redis_url: str):
+    """Get an async Redis checkpointer for FastAPI/async contexts.
+
+    Required for graph.ainvoke() and other async operations.
+
+    Args:
+        redis_url: Redis connection URL (e.g., 'redis://localhost:6379').
+
+    Returns:
+        AsyncRedisSaver instance for non-blocking checkpoint operations.
+    """
+    from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+
+    context_manager = AsyncRedisSaver.from_conn_string(redis_url, ttl={"default_ttl": 60})
+    checkpointer = await context_manager.__aenter__()
+    await checkpointer.asetup()
+    checkpointer._context_manager = context_manager
+    return checkpointer
+
+
+def get_postgres_checkpointer(connection_string: str):
+    """Get a PostgreSQL checkpointer for production (sync).
+
+    PostgreSQL checkpointing provides durable storage for:
+    - Long-term conversation history
+    - Compliance/audit requirements
+    - Complex query patterns on checkpoint data
+
+    Args:
+        connection_string: PostgreSQL connection URL.
+
+    Returns:
+        PostgresSaver instance for persistent state storage.
 
     Note:
         Requires psycopg pool to be configured. Call .setup() before first use.
+        For async contexts (FastAPI), use get_async_postgres_checkpointer instead.
+    """
+    import psycopg
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg.rows import dict_row
+
+    conn = psycopg.connect(connection_string, row_factory=dict_row)
+    checkpointer = PostgresSaver(conn)
+    checkpointer.setup()
+    return checkpointer
+
+
+async def get_async_postgres_checkpointer(connection_string: str):
+    """Get an async PostgreSQL checkpointer for FastAPI/async contexts.
+
+    Required for graph.ainvoke() and other async operations.
+
+    Args:
+        connection_string: PostgreSQL connection URL.
+
+    Returns:
+        AsyncPostgresSaver instance for non-blocking checkpoint operations.
     """
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
     from psycopg_pool import AsyncConnectionPool
 
-    pool = AsyncConnectionPool(conninfo=connection_string)
+    pool = AsyncConnectionPool(connection_string)
+    await pool.open()
     checkpointer = AsyncPostgresSaver(pool)
-    await checkpointer.setup()
+    await checkpointer.asetup()
+    checkpointer._pool = pool
     return checkpointer
+
+
+def get_checkpointer_from_settings():
+    """Create the appropriate sync checkpointer based on application settings.
+
+    Priority:
+    1. Redis (REDIS_URL) - Fast, scalable conversation memory
+    2. PostgreSQL (DATABASE_URL) - Durable, queryable storage
+    3. Memory (fallback) - Testing/development only
+
+    Returns:
+        Configured checkpointer instance ready for use.
+
+    Note:
+        For async contexts (FastAPI), use get_async_checkpointer_from_settings instead.
+    """
+    from retail_insights.core.config import get_settings
+
+    settings = get_settings()
+
+    if settings.REDIS_URL:
+        return get_redis_checkpointer(settings.REDIS_URL)
+
+    if settings.DATABASE_URL:
+        return get_postgres_checkpointer(settings.DATABASE_URL)
+
+    return get_memory_checkpointer()
+
+
+async def get_async_checkpointer_from_settings():
+    """Create the appropriate async checkpointer based on application settings.
+
+    Required for FastAPI and other async contexts where graph.ainvoke() is used.
+
+    Priority:
+    1. Redis (REDIS_URL) - Fast, scalable conversation memory
+    2. PostgreSQL (DATABASE_URL) - Durable, queryable storage
+    3. Memory (fallback) - Works in both sync/async contexts
+
+    Returns:
+        Configured async checkpointer instance ready for use.
+    """
+    from retail_insights.core.config import get_settings
+
+    settings = get_settings()
+
+    if settings.REDIS_URL:
+        return await get_async_redis_checkpointer(settings.REDIS_URL)
+
+    if settings.DATABASE_URL:
+        return await get_async_postgres_checkpointer(settings.DATABASE_URL)
+
+    return get_memory_checkpointer()

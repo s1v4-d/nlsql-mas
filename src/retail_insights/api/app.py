@@ -7,7 +7,10 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from retail_insights.agents.graph import build_graph, get_memory_checkpointer
+from retail_insights.agents.graph import (
+    build_graph,
+    get_async_checkpointer_from_settings,
+)
 from retail_insights.api.dependencies import request_id_ctx
 from retail_insights.api.routes.admin import router as admin_router
 from retail_insights.api.routes.query import router as query_router
@@ -23,6 +26,7 @@ from retail_insights.core.exceptions import (
 from retail_insights.core.logging import configure_logging, get_logger
 from retail_insights.core.telemetry import configure_telemetry
 from retail_insights.engine.schema_registry import get_schema_registry
+from retail_insights.models.responses import HealthResponse
 
 configure_logging()
 logger = get_logger(__name__)
@@ -41,14 +45,24 @@ async def lifespan(app: FastAPI):
     app.state.schema_registry = schema_registry
     logger.info("schema_registry_initialized", table_count=len(schema_registry.get_valid_tables()))
 
-    checkpointer = get_memory_checkpointer()
+    checkpointer = await get_async_checkpointer_from_settings()
     graph = build_graph(checkpointer=checkpointer)
     app.state.graph = graph
     app.state.checkpointer = checkpointer
-    logger.info("langgraph_initialized", checkpointer_type="memory")
+
+    checkpointer_type = "memory"
+    if settings.REDIS_URL:
+        checkpointer_type = "redis"
+    elif settings.DATABASE_URL:
+        checkpointer_type = "postgres"
+    logger.info("langgraph_initialized", checkpointer_type=checkpointer_type)
 
     yield
 
+    if hasattr(checkpointer, "_context_manager"):
+        await checkpointer._context_manager.__aexit__(None, None, None)
+    elif hasattr(checkpointer, "_pool"):
+        await checkpointer._pool.close()
     logger.info("app_shutdown")
 
 
@@ -170,9 +184,9 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_credentials=len(settings.CORS_ORIGINS) == 1 and settings.CORS_ORIGINS[0] != "*",
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Session-ID"],
     )
 
     register_exception_handlers(app)
@@ -180,17 +194,20 @@ def create_app() -> FastAPI:
     app.include_router(admin_router)
     app.include_router(query_router)
 
-    @app.get("/health", tags=["health"])
-    async def health_check() -> dict[str, Any]:
+    @app.get("/health", tags=["health"], response_model=HealthResponse)
+    async def health_check() -> HealthResponse:
         """Basic health check endpoint."""
-        return {
-            "status": "healthy",
-            "version": settings.APP_VERSION,
-            "request_id": request_id_ctx.get(),
-        }
+        return HealthResponse(
+            status="healthy",
+            version=settings.APP_VERSION,
+            components={
+                "api": "healthy",
+                "request_id": request_id_ctx.get() or "none",
+            },
+        )
 
-    @app.get("/ready", tags=["health"])
-    async def readiness_check() -> dict[str, Any]:
+    @app.get("/ready", tags=["health"], response_model=None)
+    async def readiness_check() -> dict[str, Any] | JSONResponse:
         """Readiness check for Kubernetes.
 
         Verifies schema registry is initialized and graph is ready.

@@ -5,6 +5,8 @@ This package contains the multi-agent workflow for natural language to SQL trans
 
 from retail_insights.agents.graph import (
     build_graph,
+    get_async_checkpointer_from_settings,
+    get_checkpointer_from_settings,
     get_memory_checkpointer,
     get_postgres_checkpointer,
 )
@@ -25,6 +27,8 @@ __all__ = [
     "ValidationStatus",
     # Graph
     "build_graph",
+    "get_async_checkpointer_from_settings",
+    "get_checkpointer_from_settings",
     "get_memory_checkpointer",
     "get_postgres_checkpointer",
 ]
