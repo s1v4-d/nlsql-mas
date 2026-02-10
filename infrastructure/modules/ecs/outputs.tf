@@ -58,6 +58,16 @@ output "alb_zone_id" {
   value       = aws_lb.main.zone_id
 }
 
+output "app_secrets_arn" {
+  description = "Application secrets ARN in Secrets Manager"
+  value       = var.create_app_secrets ? aws_secretsmanager_secret.app[0].arn : null
+}
+
+output "app_secrets_name" {
+  description = "Application secrets name in Secrets Manager"
+  value       = var.create_app_secrets ? aws_secretsmanager_secret.app[0].name : null
+}
+
 output "alb_url" {
   description = "ALB URL (HTTP or HTTPS based on configuration)"
   value       = var.enable_https ? "https://${aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"

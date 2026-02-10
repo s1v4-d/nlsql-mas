@@ -49,8 +49,8 @@ def _get_key_prefix(key: str, length: int = 8) -> str:
 
 def verify_api_key(
     request: Request,
+    settings: SettingsDep,
     api_key: str | None = Security(api_key_header),
-    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> AuthenticatedUser | None:
     """Verify API key and return authenticated user with scope.
 
@@ -101,8 +101,8 @@ def verify_api_key(
 
 
 def require_admin(
+    settings: SettingsDep,
     api_key: str | None = Security(api_key_header),
-    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> AuthenticatedUser:
     """Require admin API key for protected endpoints.
 
@@ -138,8 +138,8 @@ def require_admin(
 
 
 def optional_api_key(
+    settings: SettingsDep,
     api_key: str | None = Security(api_key_header),
-    settings: SettingsDep = None,  # type: ignore[assignment]
 ) -> AuthenticatedUser | None:
     """Get authenticated user if API key provided (for analytics/logging).
 

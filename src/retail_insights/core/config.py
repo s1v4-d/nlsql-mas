@@ -1,10 +1,25 @@
 """Application configuration using Pydantic Settings with multi-file support."""
 
+import os
 from functools import lru_cache
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
+
+
+def _get_aws_secrets_source() -> type | None:
+    """Import AWS Secrets Manager source only when needed."""
+    try:
+        from pydantic_settings import AWSSecretsManagerSettingsSource
+
+        return AWSSecretsManagerSettingsSource
+    except ImportError:
+        return None
 
 
 class Settings(BaseSettings):
@@ -17,7 +32,8 @@ class Settings(BaseSettings):
     1. .env (base defaults)
     2. env-files/dev.env (development overrides)
     3. env-files/secrets/secrets.env (secrets, never committed)
-    4. OS environment variables (highest priority)
+    4. OS environment variables
+    5. AWS Secrets Manager (when deployed to AWS, highest priority)
     """
 
     model_config = SettingsConfigDict(
@@ -25,6 +41,12 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+    )
+
+    # AWS Secrets Manager Integration
+    AWS_SECRETS_MANAGER_SECRET_ID: str | None = Field(
+        default=None,
+        description="Secrets Manager secret ID (set by ECS task definition)",
     )
 
     # Application
@@ -126,10 +148,47 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in v.split(",")]
         return v
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Customize settings sources to include AWS Secrets Manager when deployed.
+
+        When AWS_SECRETS_MANAGER_SECRET_ID is set (by ECS task definition),
+        secrets are loaded from Secrets Manager with highest priority.
+        This works for any environment (dev, staging, prod) when deployed to AWS.
+        """
+        sources: list[PydanticBaseSettingsSource] = [
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        ]
+
+        secret_id = os.environ.get("AWS_SECRETS_MANAGER_SECRET_ID")
+
+        if secret_id:
+            aws_source_cls = _get_aws_secrets_source()
+            if aws_source_cls:
+                aws_source = aws_source_cls(settings_cls, secret_id)
+                sources.insert(0, aws_source)
+
+        return tuple(sources)
+
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""
         return self.ENVIRONMENT == "production"
+
+    @property
+    def is_deployed(self) -> bool:
+        """Check if running in a deployed AWS environment (vs local)."""
+        return self.AWS_SECRETS_MANAGER_SECRET_ID is not None
 
     @property
     def database_configured(self) -> bool:
@@ -159,4 +218,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

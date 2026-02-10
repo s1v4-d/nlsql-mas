@@ -55,7 +55,7 @@ async def discover_schema(state: RetailInsightsState) -> dict:
     llm = ChatOpenAI(
         model=settings.OPENAI_MODEL,
         temperature=0,
-        api_key=settings.OPENAI_API_KEY.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY,
     )
 
     llm_with_tools = llm.bind_tools(SCHEMA_TOOLS)
@@ -68,7 +68,7 @@ async def discover_schema(state: RetailInsightsState) -> dict:
         HumanMessage(content=user_prompt),
     ]
 
-    discovered_tables = []
+    discovered_tables: list[str] = []
     schema_parts = []
 
     for iteration in range(MAX_TOOL_ITERATIONS):

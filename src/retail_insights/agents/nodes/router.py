@@ -54,7 +54,7 @@ async def route_query(state: RetailInsightsState) -> dict:
     llm = ChatOpenAI(
         model=settings.OPENAI_MODEL,
         temperature=0,  # Deterministic for classification
-        api_key=settings.OPENAI_API_KEY.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY,
     )
     structured_llm = llm.with_structured_output(RouterDecision)
 
@@ -66,7 +66,7 @@ async def route_query(state: RetailInsightsState) -> dict:
 
     # Invoke LLM for classification
     try:
-        result: RouterDecision = await structured_llm.ainvoke(
+        result: RouterDecision = await structured_llm.ainvoke(  # type: ignore[assignment]
             [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt),

@@ -390,7 +390,7 @@ def _enforce_limit(
     Returns:
         Tuple of (corrected_sql, list of warnings).
     """
-    warnings = []
+    warnings: list[str] = []
 
     # Check for existing LIMIT
     limit_node = ast.find(exp.Limit)
@@ -408,17 +408,19 @@ def _enforce_limit(
 
         return original_sql, warnings
 
-    # Add LIMIT clause
-    try:
-        modified = ast.limit(DEFAULT_LIMIT)
-        warnings.append(f"LIMIT {DEFAULT_LIMIT} automatically added")
-        return modified.sql(dialect="duckdb"), warnings
-    except Exception as e:
-        # If modification fails, append manually
-        logger.warning("limit_injection_failed", error=str(e))
-        corrected = f"{original_sql.rstrip().rstrip(';')} LIMIT {DEFAULT_LIMIT}"
-        warnings.append(f"LIMIT {DEFAULT_LIMIT} automatically added")
-        return corrected, warnings
+    # Add LIMIT clause - only works on Select expressions
+    if isinstance(ast, exp.Select):
+        try:
+            modified = ast.limit(DEFAULT_LIMIT)
+            warnings.append(f"LIMIT {DEFAULT_LIMIT} automatically added")
+            return modified.sql(dialect="duckdb"), warnings
+        except Exception as e:
+            logger.warning("limit_injection_failed", error=str(e))
+
+    # Fallback: append manually
+    corrected = f"{original_sql.rstrip().rstrip(';')} LIMIT {DEFAULT_LIMIT}"
+    warnings.append(f"LIMIT {DEFAULT_LIMIT} automatically added")
+    return corrected, warnings
 
 
 def _parse_schema_context(schema_context: str) -> dict[str, TableSchema]:

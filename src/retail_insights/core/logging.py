@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from structlog.types import Processor
+from structlog.types import Processor, WrappedLogger
 
 if TYPE_CHECKING:
     from retail_insights.core.config import Settings
 
 
 def add_opentelemetry_context(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    logger: WrappedLogger, method_name: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
     """Add OpenTelemetry trace context to log entries for correlation."""
     try:
         from opentelemetry import trace
@@ -33,8 +34,8 @@ def add_opentelemetry_context(
 
 
 def add_service_context(
-    logger: Any, method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    logger: WrappedLogger, method_name: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
     """Add service metadata to all log entries."""
     event_dict.setdefault("service", "retail-insights")
     return event_dict
@@ -67,12 +68,17 @@ def configure_logging(settings: Settings | None = None) -> None:
     ]
 
     if is_development and is_tty:
-        processors = [
+        processors: list[Processor] = [
             *common_processors,
             structlog.processors.ExceptionPrettyPrinter(),
             structlog.dev.ConsoleRenderer(colors=True),
         ]
-        log_factory = structlog.PrintLoggerFactory()
+        structlog.configure(
+            processors=processors,
+            wrapper_class=structlog.make_filtering_bound_logger(log_level),
+            logger_factory=structlog.PrintLoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
     else:
         processors = [
             *common_processors,
@@ -80,14 +86,12 @@ def configure_logging(settings: Settings | None = None) -> None:
             structlog.processors.dict_tracebacks,
             structlog.processors.JSONRenderer(),
         ]
-        log_factory = structlog.WriteLoggerFactory()
-
-    structlog.configure(
-        processors=processors,
-        wrapper_class=structlog.make_filtering_bound_logger(log_level),
-        logger_factory=log_factory,
-        cache_logger_on_first_use=True,
-    )
+        structlog.configure(
+            processors=processors,
+            wrapper_class=structlog.make_filtering_bound_logger(log_level),
+            logger_factory=structlog.WriteLoggerFactory(),
+            cache_logger_on_first_use=True,
+        )
 
     logging.basicConfig(
         format="%(message)s",

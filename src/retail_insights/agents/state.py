@@ -115,9 +115,11 @@ def create_initial_state(
     Returns:
         A fully initialized RetailInsightsState with default values.
     """
+    from langchain_core.messages import HumanMessage
+
     return RetailInsightsState(
-        # Messages (from MessagesState)
-        messages=[],
+        # Messages (from MessagesState) - include user query for conversation memory
+        messages=[HumanMessage(content=user_query)],
         # User input
         user_query=user_query,
         query_mode=query_mode,

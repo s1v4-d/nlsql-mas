@@ -10,6 +10,7 @@ import asyncio
 import logging
 import math
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from enum import StrEnum
 from functools import partial
@@ -414,7 +415,7 @@ def create_mock_executor(
     mock_data: list[dict[str, Any]] | None = None,
     mock_error: str | None = None,
     execution_time_ms: float = 50.0,
-) -> callable:
+) -> Callable[..., Any]:
     """Create a mock executor for testing.
 
     Args:

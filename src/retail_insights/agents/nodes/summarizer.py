@@ -56,7 +56,7 @@ async def summarize_results(state: RetailInsightsState) -> dict:
     llm = ChatOpenAI(
         model=settings.OPENAI_MODEL,
         temperature=0.3,  # Slight creativity for natural phrasing
-        api_key=settings.OPENAI_API_KEY.get_secret_value(),
+        api_key=settings.OPENAI_API_KEY,
     )
 
     # Get available date ranges for context (especially for empty results)

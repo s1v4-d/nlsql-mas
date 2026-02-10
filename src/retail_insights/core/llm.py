@@ -71,8 +71,8 @@ class LLMClient:
             self.model = ChatOpenAI(
                 model=self.model_name,
                 temperature=temperature,
-                max_tokens=max_tokens,
-                api_key=settings.OPENAI_API_KEY.get_secret_value(),
+                max_completion_tokens=max_tokens,
+                api_key=settings.OPENAI_API_KEY,
                 timeout=settings.OPENAI_TIMEOUT,
             )
 

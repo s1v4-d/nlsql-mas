@@ -141,7 +141,7 @@ class QueryCache:
                 socket_timeout=2.0,
                 socket_connect_timeout=2.0,
             )
-            await self._redis.ping()
+            await self._redis.ping()  # type: ignore[misc]
             self._redis_available = True
             logger.info("cache_redis_connected", url=self.config.redis_url[:20] + "...")
             return True
@@ -259,8 +259,9 @@ class QueryCache:
         """
         count = 0
 
+        l1_count = len(self._l1_cache)
         self._l1_cache.clear()
-        count += len(self._l1_cache)
+        count += l1_count
 
         if self._redis_available and self._redis:
             try:

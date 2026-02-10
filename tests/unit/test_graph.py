@@ -65,8 +65,9 @@ class TestRetailInsightsState:
         assert state["available_tables"] == []
         assert state["schema_context"] == ""
 
-        # Messages (from MessagesState)
-        assert state["messages"] == []
+        # Messages (from MessagesState) - starts with user query as HumanMessage
+        assert len(state["messages"]) == 1
+        assert state["messages"][0].content == "What are the top 5 products by revenue?"
 
     def test_create_initial_state_full(self) -> None:
         """Test creating initial state with all optional arguments."""

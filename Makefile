@@ -68,6 +68,16 @@ help:
 	@echo "  dev          Run API locally with hot-reload"
 	@echo "  run-ui       Run Streamlit UI locally"
 	@echo ""
+	@echo "Terraform (TF_ENV=dev|staging|prod):"
+	@echo "  tf-init      Initialize Terraform backend and providers"
+	@echo "  tf-plan      Generate and show execution plan"
+	@echo "  tf-apply     Apply the planned changes"
+	@echo "  tf-destroy   Destroy all managed infrastructure"
+	@echo "  tf-fmt       Format all Terraform files"
+	@echo "  tf-validate  Validate Terraform configuration"
+	@echo "  tf-lint      Run TFLint on infrastructure"
+	@echo "  tf-docs      Generate Terraform documentation"
+	@echo ""
 	@echo "Quality:"
 	@echo "  lint         Run linter"
 	@echo "  format       Format code"
@@ -139,7 +149,60 @@ endif
 	@exit 1
 endif
 	cd infrastructure/environments/dev && terraform init
-	@echo "Terraform initialized. Run 'cd infrastructure/environments/dev && terraform plan'"
+	@echo "Terraform initialized. Run 'make tf-plan' to see changes."
+
+# Terraform Commands
+TF_ENV ?= dev
+TF_DIR := infrastructure/environments/$(TF_ENV)
+
+.PHONY: tf-init tf-plan tf-apply tf-destroy tf-fmt tf-validate tf-lint tf-docs
+
+tf-init:
+ifndef HAS_TERRAFORM
+	@echo "Terraform not found. Run 'make init-infra' for installation instructions."
+	@exit 1
+endif
+	cd $(TF_DIR) && terraform init
+
+tf-plan:
+ifndef HAS_TERRAFORM
+	@echo "Terraform not found."
+	@exit 1
+endif
+	cd $(TF_DIR) && terraform plan -out=tfplan
+
+tf-apply:
+ifndef HAS_TERRAFORM
+	@echo "Terraform not found."
+	@exit 1
+endif
+	cd $(TF_DIR) && terraform apply tfplan
+
+tf-destroy:
+ifndef HAS_TERRAFORM
+	@echo "Terraform not found."
+	@exit 1
+endif
+	cd $(TF_DIR) && terraform destroy
+
+tf-fmt:
+	terraform fmt -recursive infrastructure/
+
+tf-validate:
+ifndef HAS_TERRAFORM
+	@echo "Terraform not found."
+	@exit 1
+endif
+	cd $(TF_DIR) && terraform validate
+
+tf-lint:
+	@command -v tflint >/dev/null 2>&1 || { echo "tflint not found. Install with: brew install tflint"; exit 1; }
+	tflint --init
+	tflint --recursive --config=.tflint.hcl
+
+tf-docs:
+	@command -v terraform-docs >/dev/null 2>&1 || { echo "terraform-docs not found. Install with: brew install terraform-docs"; exit 1; }
+	terraform-docs markdown table --recursive infrastructure/modules -c .terraform-docs.yml
 
 build: check-docker stop
 	$(COMPOSE) build

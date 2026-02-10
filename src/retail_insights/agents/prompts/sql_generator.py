@@ -107,6 +107,7 @@ def format_sql_generator_prompt(
     validation_errors: list[str] | None = None,
     previous_sql: str | None = None,
     current_date: str | None = None,
+    include_few_shot: bool = True,
 ) -> tuple[str, str]:
     """Format the SQL generator prompt with context.
 
@@ -116,6 +117,7 @@ def format_sql_generator_prompt(
         validation_errors: List of errors from previous attempt (for retry).
         previous_sql: Previously generated SQL that failed (for retry).
         current_date: Current date string for temporal context.
+        include_few_shot: Whether to include few-shot examples for better accuracy.
 
     Returns:
         Tuple of (system_prompt, user_prompt) for LLM invocation.
@@ -123,10 +125,17 @@ def format_sql_generator_prompt(
     if current_date is None:
         current_date = datetime.now().strftime("%Y-%m-%d")
 
+    few_shot_section = ""
+    if include_few_shot:
+        few_shot_section = _format_few_shot_examples()
+
     system = SQL_GENERATOR_SYSTEM_PROMPT.format(
         schema_context=schema_context or "No schema context available.",
         current_date=current_date,
     )
+
+    if few_shot_section:
+        system += f"\n\n## Few-Shot Examples\n{few_shot_section}"
 
     # Build retry context if this is a retry attempt
     retry_context = ""
@@ -156,6 +165,18 @@ Please fix these issues in your new query. Common fixes:
     )
 
     return system, user
+
+
+def _format_few_shot_examples() -> str:
+    """Format few-shot examples for inclusion in prompt."""
+    examples_text = []
+    for i, example in enumerate(SQL_GENERATOR_FEW_SHOT_EXAMPLES[:4], 1):
+        examples_text.append(
+            f"### Example {i}: {example['question']}\n"
+            f"```sql\n{example['sql']}\n```\n"
+            f"Explanation: {example['explanation']}"
+        )
+    return "\n\n".join(examples_text)
 
 
 # Few-shot examples for improved SQL generation

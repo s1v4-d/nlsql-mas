@@ -52,15 +52,15 @@ variable "kms_key_arn" {
 variable "services" {
   description = "Map of ECS services to create"
   type = map(object({
-    cpu           = number
-    memory        = number
-    container_port = number
-    health_check_path = string
-    min_capacity  = number
-    max_capacity  = number
-    desired_count = number
+    cpu                   = number
+    memory                = number
+    container_port        = number
+    health_check_path     = string
+    min_capacity          = number
+    max_capacity          = number
+    desired_count         = number
     environment_variables = optional(map(string), {})
-    secrets       = optional(map(string), {})
+    secrets               = optional(map(string), {})
   }))
 
   default = {
@@ -201,4 +201,31 @@ variable "tags" {
 variable "aws_region" {
   description = "AWS region"
   type        = string
+}
+
+variable "create_app_secrets" {
+  description = "Create application secrets in Secrets Manager"
+  type        = bool
+  default     = true
+}
+
+variable "openai_api_key" {
+  description = "OpenAI API key (store in tfvars or TF_VAR_openai_api_key)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "api_key" {
+  description = "API key for user authentication"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "admin_api_key" {
+  description = "API key for admin endpoints"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

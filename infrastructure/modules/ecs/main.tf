@@ -539,10 +539,20 @@ resource "aws_ecs_task_definition" "services" {
           { name = "LOG_LEVEL", value = var.environment == "prod" ? "INFO" : "DEBUG" },
           { name = "PORT", value = tostring(each.value.container_port) }
         ],
+        var.create_app_secrets ? [
+          { name = "AWS_SECRETS_MANAGER_SECRET_ID", value = aws_secretsmanager_secret.app[0].name }
+        ] : [],
         [for k, v in each.value.environment_variables : { name = k, value = v }]
       )
 
-      secrets = [for k, v in each.value.secrets : { name = k, valueFrom = v }]
+      secrets = concat(
+        var.create_app_secrets ? [
+          { name = "OPENAI_API_KEY", valueFrom = "${aws_secretsmanager_secret.app[0].arn}:OPENAI_API_KEY::" },
+          { name = "API_KEY", valueFrom = "${aws_secretsmanager_secret.app[0].arn}:API_KEY::" },
+          { name = "ADMIN_API_KEY", valueFrom = "${aws_secretsmanager_secret.app[0].arn}:ADMIN_API_KEY::" }
+        ] : [],
+        [for k, v in each.value.secrets : { name = k, valueFrom = v }]
+      )
 
       healthCheck = {
         command     = ["CMD-SHELL", "curl -f http://localhost:${each.value.container_port}${each.value.health_check_path} || exit 1"]
@@ -700,5 +710,34 @@ resource "aws_appautoscaling_policy" "memory" {
     target_value       = var.memory_target_value
     scale_in_cooldown  = var.scale_in_cooldown
     scale_out_cooldown = var.scale_out_cooldown
+  }
+}
+
+# Application Secrets
+resource "aws_secretsmanager_secret" "app" {
+  count = var.create_app_secrets ? 1 : 0
+
+  name                    = "${var.project_name}/${var.environment}/app"
+  description             = "Application secrets for ${var.project_name} ${var.environment}"
+  kms_key_id              = var.kms_key_arn
+  recovery_window_in_days = var.environment == "prod" ? 30 : 0
+
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-app-secrets"
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "app" {
+  count = var.create_app_secrets ? 1 : 0
+
+  secret_id = aws_secretsmanager_secret.app[0].id
+  secret_string = jsonencode({
+    OPENAI_API_KEY = var.openai_api_key
+    API_KEY        = var.api_key
+    ADMIN_API_KEY  = var.admin_api_key
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
   }
 }

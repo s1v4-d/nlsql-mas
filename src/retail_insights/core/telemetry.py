@@ -55,7 +55,7 @@ def _configure_exporters(provider: TracerProvider, settings: Settings) -> None:
         try:
             from opentelemetry.sdk.extension.aws.trace import AwsXRayIdGenerator
 
-            provider._id_generator = AwsXRayIdGenerator()
+            provider.id_generator = AwsXRayIdGenerator()
         except ImportError:
             pass  # AWS extension not installed
 

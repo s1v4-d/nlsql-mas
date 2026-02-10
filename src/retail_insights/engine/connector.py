@@ -195,7 +195,7 @@ class DuckDBConnector:
         self,
         query: str,
         parameters: tuple | list | dict | None = None,
-    ) -> duckdb.DuckDBPyRelation:
+    ) -> duckdb.DuckDBPyConnection:
         """Execute a query and return result relation.
 
         Args:
@@ -203,7 +203,7 @@ class DuckDBConnector:
             parameters: Optional query parameters.
 
         Returns:
-            DuckDB relation object.
+            DuckDB connection with executed query result.
         """
         conn = self.get_connection()
         if parameters:

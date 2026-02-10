@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
+from langchain_core.runnables import RunnableConfig
 
 from retail_insights.agents import create_initial_state
 from retail_insights.api.auth import ApiKeyDep
@@ -104,7 +105,7 @@ async def process_query(
     )
 
     # Invoke the graph
-    config = {"configurable": {"thread_id": thread_id}}
+    config = cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
 
     try:
         result = await graph.ainvoke(initial_state, config=config)
@@ -225,7 +226,7 @@ async def process_query_stream(
         schema_context=schema_context,
     )
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
 
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events from graph stream."""
@@ -375,7 +376,7 @@ async def generate_summary(
         schema_context=schema_context,
     )
 
-    config = {"configurable": {"thread_id": thread_id}}
+    config = cast(RunnableConfig, {"configurable": {"thread_id": thread_id}})
 
     try:
         result = await graph.ainvoke(initial_state, config=config)

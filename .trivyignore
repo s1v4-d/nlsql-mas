@@ -1,0 +1,22 @@
+# Trivy Ignore File
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+
+# Infrastructure patterns that are intentional
+
+# ALB uses HTTP for health checks (HTTPS terminates at ALB)
+AVD-AWS-0053
+
+# S3 bucket logging is optional for dev environments
+# Enable via enable_access_logging = true in production
+AVD-AWS-0089
+
+# Cross-region replication not required for single-region deployments
+CKV_AWS_144
+CKV2_AWS_62
+
+# VPC Flow logs retention is configurable per environment
+AVD-AWS-0101
+
+# ECS execute command is enabled for debugging (disable in prod)
+# Controlled via enable_execute_command variable
+AVD-AWS-0034
