@@ -191,9 +191,12 @@ def display_error(response: dict[str, Any]) -> None:
         st.error(message)
 
 
-def add_export_buttons(df: pd.DataFrame, prefix: str = "retail_data") -> None:
+def add_export_buttons(
+    df: pd.DataFrame, prefix: str = "retail_data", key_suffix: str | None = None
+) -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{prefix}_{timestamp}"
+    unique_key = key_suffix or str(id(df))
 
     col1, col2 = st.columns(2)
 
@@ -204,7 +207,7 @@ def add_export_buttons(df: pd.DataFrame, prefix: str = "retail_data") -> None:
             data=csv,
             file_name=f"{filename}.csv",
             mime="text/csv",
-            key=f"csv_{timestamp}",
+            key=f"csv_{unique_key}",
         )
 
     with col2:
@@ -216,7 +219,7 @@ def add_export_buttons(df: pd.DataFrame, prefix: str = "retail_data") -> None:
             data=buffer.getvalue(),
             file_name=f"{filename}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=f"excel_{timestamp}",
+            key=f"excel_{unique_key}",
         )
 
 
@@ -341,6 +344,7 @@ def render_chat_message(
     data: list[dict[str, Any]] | None = None,
     sql: str | None = None,
     execution_time: float | None = None,
+    msg_index: int = 0,
 ) -> None:
     with st.chat_message(role):
         st.markdown(content)
@@ -359,7 +363,7 @@ def render_chat_message(
                 hide_index=True,
             )
 
-            add_export_buttons(df)
+            add_export_buttons(df, key_suffix=f"msg_{msg_index}")
 
         if execution_time:
             st.caption(f"{execution_time:.0f}ms")
@@ -379,13 +383,14 @@ def render_main_chat() -> None:
         st.session_state.messages.append({"role": "user", "content": pending})
         del st.session_state.pending_query
 
-    for message in st.session_state.messages:
+    for idx, message in enumerate(st.session_state.messages):
         render_chat_message(
             role=message["role"],
             content=message["content"],
             data=message.get("data"),
             sql=message.get("sql"),
             execution_time=message.get("execution_time"),
+            msg_index=idx,
         )
 
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
@@ -425,7 +430,7 @@ def render_main_chat() -> None:
                         df = pd.DataFrame(data)
                         st.session_state.last_results = df
                         st.dataframe(df, use_container_width=True, hide_index=True)
-                        add_export_buttons(df)
+                        add_export_buttons(df, key_suffix="live")
 
                     if exec_time:
                         st.caption(f"{exec_time:.0f}ms")

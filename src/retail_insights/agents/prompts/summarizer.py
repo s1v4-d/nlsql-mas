@@ -78,9 +78,12 @@ SUMMARIZER_USER_PROMPT_EMPTY = """## User Question
 ## Query Information
 The query executed successfully but returned no results.
 
+## SQL Query Executed
+{sql_query}
+
 {date_range_info}
 
-Explain to the user why no data was found. If the date ranges above show the data doesn't cover the requested time period, specifically mention this. Suggest how they might modify their question to find relevant information based on the available data dates."""
+Explain to the user that no matching data was found. Be factual and avoid speculation about why data might be missing. If the user's question involved date filters that fall outside the available data range, mention this. Otherwise, simply state that no matching records exist in the dataset and offer to help refine their question."""
 
 SUMMARIZER_USER_PROMPT_ERROR = """## User Question
 {user_query}
@@ -227,6 +230,7 @@ def format_summarizer_prompt(
     execution_error: str | None = None,
     intent: str | None = None,
     available_date_ranges: str | None = None,
+    generated_sql: str | None = None,
 ) -> tuple[str, str]:
     """Format the summarizer prompt based on result type.
 
@@ -238,6 +242,7 @@ def format_summarizer_prompt(
         execution_error: Error message if execution failed.
         intent: Router-classified intent (query/summarize/chat).
         available_date_ranges: Text describing available date ranges for context.
+        generated_sql: The SQL query that was executed (for empty result context).
 
     Returns:
         Tuple of (system_prompt, user_prompt).
@@ -267,9 +272,11 @@ def format_summarizer_prompt(
         )
     elif result_type == "empty":
         date_info = available_date_ranges or "No date range information available."
+        sql_info = generated_sql or "SQL query not available."
         user_prompt = SUMMARIZER_USER_PROMPT_EMPTY.format(
             user_query=user_query,
             date_range_info=date_info,
+            sql_query=sql_info,
         )
     elif result_type == "error":
         # Parse error type from message

@@ -76,6 +76,7 @@ async def summarize_results(state: RetailInsightsState) -> dict:
         execution_error=state.get("execution_error"),
         intent=state.get("intent"),
         available_date_ranges=available_date_ranges,
+        generated_sql=state.get("generated_sql"),
     )
 
     try:
